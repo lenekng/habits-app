@@ -460,19 +460,19 @@
   }
 
   .s1 {
-    background: #8abf9a;
+    background: #8fc39c;
   }
 
   .s2 {
-    background: #5f9d74;
+    background: #61a18c;
   }
 
   .s3 {
-    background: #3d7a53;
+    background: #3a7d79;
   }
 
   .s4 {
-    background: #265237;
+    background: #1d5766;
   }
 
   .pdot {
