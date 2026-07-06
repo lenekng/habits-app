@@ -115,7 +115,11 @@
     | { kind: 'yes' }
     | { kind: 'no' }
     | { kind: 'scale'; level: 1 | 2 | 3 | 4 }
-    | { kind: 'choice'; count: number };
+    | { kind: 'choice'; indices: number[] };
+
+  const choiceHabits = $derived(
+    habits.filter((h) => h.type === 'choice' && (h.choices?.length ?? 0) > 0)
+  );
 
   function habitMarker(h: HabitDefinition, entry: DayEntry | undefined): HabitMarker {
     const v = entry?.habits[h.id];
@@ -130,7 +134,8 @@
       return { kind: 'scale', level };
     }
     if (h.type === 'choice' && Array.isArray(v) && v.length > 0) {
-      return { kind: 'choice', count: v.length };
+      const choices = h.choices ?? [];
+      return { kind: 'choice', indices: v.map((c) => choices.indexOf(c)) };
     }
     return { kind: 'empty' };
   }
@@ -207,7 +212,11 @@
               {:else if m.kind === 'scale'}
                 <span class="scale s{m.level}"></span>
               {:else if m.kind === 'choice'}
-                <span class="dot" class:count={m.count > 1}>{m.count > 1 ? m.count : ''}</span>
+                <span class="minis">
+                  {#each m.indices.slice(0, 4) as ci, i (i)}
+                    <span class="mini {ci >= 0 ? `c${ci % 8}` : 'cx'}"></span>
+                  {/each}
+                </span>
               {/if}
             </button>
           {/each}
@@ -222,7 +231,14 @@
         <span class="scale s1"></span><span class="scale s2"></span><span class="scale s3"
         ></span><span class="scale s4"></span> Skala 1&#8211;4
       </span>
-      <span class="item"><span class="dot count">2</span> Sport: Anzahl</span>
+      {#each choiceHabits as h (h.id)}
+        <span class="item choice-legend">
+          {h.name}:
+          {#each h.choices ?? [] as c, i (c)}
+            <span class="legend-choice"><span class="mini c{i % 8}"></span>{c}</span>
+          {/each}
+        </span>
+      {/each}
       <span class="item">
         <span class="pdot p-light"></span><span class="pdot p-medium"></span><span
           class="pdot p-heavy"
@@ -375,9 +391,41 @@
     font-weight: 600;
   }
 
-  .dot.count {
-    width: 1.1rem;
-    height: 1.1rem;
+  .minis {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5px;
+    justify-content: center;
+    max-width: 1.5rem;
+  }
+
+  .mini {
+    display: inline-block;
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 1px rgba(11, 11, 11, 0.1);
+  }
+
+  .c0 { background: #2a78d6; }
+  .c1 { background: #1baf7a; }
+  .c2 { background: #eda100; }
+  .c3 { background: #008300; }
+  .c4 { background: #4a3aa7; }
+  .c5 { background: #e34948; }
+  .c6 { background: #e87ba4; }
+  .c7 { background: #eb6834; }
+  .cx { background: var(--muted); }
+
+  .legend-choice {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-right: 0.4rem;
+  }
+
+  .choice-legend {
+    flex-wrap: wrap;
   }
 
   .no-mark {
@@ -394,22 +442,23 @@
     width: 0.95rem;
     height: 0.95rem;
     border-radius: 0.25rem;
+    box-shadow: inset 0 0 0 1px rgba(11, 11, 11, 0.1);
   }
 
   .s1 {
-    background: color-mix(in srgb, var(--accent) 25%, transparent);
+    background: #8abf9a;
   }
 
   .s2 {
-    background: color-mix(in srgb, var(--accent) 50%, transparent);
+    background: #5f9d74;
   }
 
   .s3 {
-    background: color-mix(in srgb, var(--accent) 75%, transparent);
+    background: #3d7a53;
   }
 
   .s4 {
-    background: var(--accent);
+    background: #265237;
   }
 
   .pdot {
