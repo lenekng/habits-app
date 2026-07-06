@@ -166,3 +166,6 @@ Doppelkontrolle · Zyklusanfangsregeln (5-Tage-/Minus-8-Regel) · Lernphasen-Log
 - **NFP-Korrektheit:** Fehler in der Regelimplementierung haben reale Konsequenzen — aber erst, wenn das NFP-Modul (v4) tatsächlich zur Verhütung genutzt wird; für Analyse und Vorhersage ist der Eisprung-Schätzer nur eine Schätzgröße ohne Sicherheitsanspruch. Gegenmaßnahmen ab v4: Regel-Engine als pure Functions mit Testfällen aus der Literatur, Anzeige immer mit Begründung, Lernphase, Parallel-Auswertung von Hand in den ersten Zyklen.
 - **Kein Medizinprodukt:** App unterstützt die selbst erlernte Methode, ersetzt sie nicht.
 - **Datenverlust Browser-Wechsel:** Daten hängen an Safari/dieser Installation; Gerätewechsel läuft über JSON-Export/-Import.
+
+todo in the futur: 
+- schreibe detaliert, wie man die auswerbung der daten mit ML implemeniteren würde
