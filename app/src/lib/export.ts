@@ -82,6 +82,33 @@ export function validateBackupPayload(data: unknown, currentSchemaVersion: numbe
     return { valid: false, errors };
   }
 
+  const habitTypes = ['bool', 'scale4', 'choice'];
+  const habitsArr = obj.habit_definitions as unknown[];
+  if (habitsArr.length === 0) {
+    errors.push('Backup enthält keine Habit-Definitionen — Wiederherstellung würde die App leeren.');
+  }
+  habitsArr.forEach((h, i) => {
+    const r = h as Record<string, unknown> | null;
+    if (typeof r?.id !== 'string' || r.id === '') errors.push(`Habit ${i + 1}: Feld "id" fehlt.`);
+    if (typeof r?.name !== 'string') errors.push(`Habit ${i + 1}: Feld "name" fehlt.`);
+    if (!habitTypes.includes(r?.type as string)) errors.push(`Habit ${i + 1}: ungültiger "type".`);
+    if (typeof r?.sortOrder !== 'number') errors.push(`Habit ${i + 1}: Feld "sortOrder" fehlt.`);
+  });
+
+  (obj.day_entries as unknown[]).forEach((e, i) => {
+    const r = e as Record<string, unknown> | null;
+    if (typeof r?.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.date)) {
+      errors.push(`Tageseintrag ${i + 1}: ungültiges "date".`);
+    }
+    if (typeof r?.habits !== 'object' || r?.habits === null) {
+      errors.push(`Tageseintrag ${i + 1}: Feld "habits" fehlt.`);
+    }
+  });
+
+  if (errors.length > 0) {
+    return { valid: false, errors: errors.slice(0, 8) };
+  }
+
   return {
     valid: true,
     errors: [],

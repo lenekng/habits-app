@@ -37,7 +37,7 @@
   }
 
   async function reactivate(habit: HabitDefinition) {
-    const restored: HabitDefinition = { ...habit };
+    const restored: HabitDefinition = { ...habit, sortOrder: nextSortOrder };
     delete restored.archivedAt;
     await db.habit_definitions.put(restored);
     await load();

@@ -81,12 +81,15 @@
         db.habit_definitions,
         db.cycles,
         db.settings,
-        async () => ({
-          day_entries: await db.day_entries.toArray(),
-          habit_definitions: await db.habit_definitions.toArray(),
-          cycles: await db.cycles.toArray(),
-          settings: await db.settings.toArray()
-        })
+        async () => {
+          const [day_entries, habit_definitions, cycles, settings] = await Promise.all([
+            db.day_entries.toArray(),
+            db.habit_definitions.toArray(),
+            db.cycles.toArray(),
+            db.settings.toArray()
+          ]);
+          return { day_entries, habit_definitions, cycles, settings };
+        }
       );
       const payload = buildBackupPayload(data, SCHEMA_VERSION);
       const delivered = await deliverFile(backupFilename(todayISO()), serializeBackup(payload), 'application/json');

@@ -10,14 +10,16 @@
     entry: DayEntry | undefined;
     onSetHabit: (value: HabitValue | undefined) => void;
     onSetBleeding: (value: Bleeding | undefined) => void;
+    onSetSpotting: (value: boolean | undefined) => void;
     onClose: () => void;
   }
 
-  let { habit, date, entry, onSetHabit, onSetBleeding, onClose }: Props = $props();
+  let { habit, date, entry, onSetHabit, onSetBleeding, onSetSpotting, onClose }: Props = $props();
 
   const value = $derived(habit ? entry?.habits[habit.id] : undefined);
   const chosen = $derived(Array.isArray(value) ? value : []);
   const bleeding = $derived(entry?.cycle?.bleeding);
+  const spotting = $derived(entry?.cycle?.spotting === true);
 
   function pickBool(v: boolean | undefined): void {
     onSetHabit(v);
@@ -62,6 +64,18 @@
         </button>
       {/each}
       <button class:selected={bleeding === undefined} onclick={() => pickBleeding(undefined)}>keine</button>
+    </div>
+    <div class="chips spot-row">
+      <button
+        class="period-btn"
+        class:selected={spotting}
+        onclick={() => {
+          onSetSpotting(spotting ? undefined : true);
+          onClose();
+        }}
+      >
+        Zwischenblutung
+      </button>
     </div>
   {:else if habit.type === 'bool'}
     <div class="chips">
@@ -142,7 +156,13 @@
   }
 
   .chips button {
-    min-height: 2.6rem;
+    min-height: 2.75rem;
+  }
+
+  .spot-row {
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--border);
   }
 
   .scale-list {
@@ -156,7 +176,7 @@
     align-items: center;
     gap: 0.6rem;
     text-align: left;
-    min-height: 2.6rem;
+    min-height: 2.75rem;
   }
 
   .level {
@@ -174,7 +194,7 @@
   .done {
     margin-top: 0.9rem;
     width: 100%;
-    min-height: 2.6rem;
+    min-height: 2.75rem;
     background: var(--accent);
     border-color: var(--accent);
     color: #fff;

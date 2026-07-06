@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Cycle, DayEntry, HabitDefinition, Setting } from './types';
+import type { Cycle, CycleObservation, DayEntry, HabitDefinition, Setting } from './types';
 
 export const SCHEMA_VERSION = 1;
 
@@ -55,6 +55,36 @@ export async function getDayEntry(date: string): Promise<DayEntry | undefined> {
 
 export async function saveDayEntry(entry: DayEntry): Promise<void> {
   await db.day_entries.put(entry);
+}
+
+function cleanCycle(c: CycleObservation): CycleObservation | undefined {
+  const out: CycleObservation = {};
+  if (c.bleeding) out.bleeding = c.bleeding;
+  if (c.temperature) out.temperature = { ...c.temperature };
+  if (c.mucus) out.mucus = c.mucus;
+  if (c.midPain) out.midPain = true;
+  if (c.breastTenderness) out.breastTenderness = true;
+  if (c.spotting) out.spotting = true;
+  if (c.note && c.note.trim() !== '') out.note = c.note;
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+export function normalizeDayEntry(entry: DayEntry): DayEntry | null {
+  const habits = { ...entry.habits };
+  const cycle = entry.cycle ? cleanCycle(entry.cycle) : undefined;
+  if (Object.keys(habits).length === 0 && !cycle) return null;
+  const out: DayEntry = { date: entry.date, habits };
+  if (cycle) out.cycle = cycle;
+  return out;
+}
+
+// Leere Entries werden gelöscht statt gespeichert: "kein Eintrag" muss von
+// "explizit nein" unterscheidbar bleiben. Einzige Stelle für diese Regel.
+export async function putOrDeleteDayEntry(entry: DayEntry): Promise<DayEntry | null> {
+  const normalized = normalizeDayEntry(entry);
+  if (normalized) await db.day_entries.put(normalized);
+  else await db.day_entries.delete(entry.date);
+  return normalized;
 }
 
 export async function activeHabits(): Promise<HabitDefinition[]> {

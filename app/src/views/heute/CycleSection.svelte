@@ -168,7 +168,7 @@
         type="text"
         placeholder="Grund (optional)"
         value={cycle.temperature.disturbanceNote ?? ''}
-        oninput={(e) => setDisturbanceNote(e.currentTarget.value)}
+        onchange={(e) => setDisturbanceNote(e.currentTarget.value)}
       />
     {/if}
     <label class="check">
@@ -212,7 +212,7 @@
 
 <div class="sub">
   <span class="sub-label">Notiz</span>
-  <textarea rows="2" placeholder="Notiz zum Tag" value={cycle.note ?? ''} oninput={(e) => setNote(e.currentTarget.value)}
+  <textarea rows="2" placeholder="Notiz zum Tag" value={cycle.note ?? ''} onchange={(e) => setNote(e.currentTarget.value)}
   ></textarea>
 </div>
 
@@ -244,6 +244,7 @@
   .bleed.selected {
     background: var(--period);
     border-color: var(--period);
+    color: #fff;
   }
 
   .suggest {

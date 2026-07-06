@@ -1,8 +1,9 @@
 <script lang="ts">
   import { nav } from '../lib/nav.svelte';
   import { addDays, formatDE, todayISO } from '../lib/date';
-  import { activeHabits, db, getDayEntry, getSetting, saveDayEntry, setSetting } from '../lib/db';
+  import { activeHabits, getDayEntry, getSetting, putOrDeleteDayEntry, setSetting } from '../lib/db';
   import { isBackupOverdue } from '../lib/backup';
+  import { disturbanceReasons as computeDisturbanceReasons } from '../lib/disturbance';
   import type { CycleObservation, DayEntry, HabitDefinition, HabitValue } from '../lib/types';
   import HabitsSection from './heute/HabitsSection.svelte';
   import CycleSection from './heute/CycleSection.svelte';
@@ -38,38 +39,21 @@
     ready = true;
   }
 
-  const disturbanceReasons = $derived.by(() => {
-    const r: string[] = [];
-    if (typeof prevHabits.alkohol === 'number' && prevHabits.alkohol >= 3) r.push('Alkohol');
-    if (typeof prevHabits.schlaf === 'number' && prevHabits.schlaf <= 2) r.push('schlecht geschlafen');
-    if (prevHabits.erkaeltung === true) r.push('Erkältung');
-    if (prevHabits.medikamente === true) r.push('Medikamente');
-    if (prevHabits.auswaerts_geschlafen === true) r.push('auswärts geschlafen');
-    if (prevHabits.urlaub === true) r.push('Urlaub');
-    return r;
-  });
+  const disturbanceReasons = $derived(computeDisturbanceReasons(prevHabits));
 
-  function cleanCycle(c: CycleObservation): CycleObservation | undefined {
-    const out: CycleObservation = {};
-    if (c.bleeding) out.bleeding = c.bleeding;
-    if (c.temperature) out.temperature = { ...c.temperature };
-    if (c.mucus) out.mucus = c.mucus;
-    if (c.midPain) out.midPain = true;
-    if (c.breastTenderness) out.breastTenderness = true;
-    if (c.spotting) out.spotting = true;
-    if (c.note && c.note.trim() !== '') out.note = c.note;
-    return Object.keys(out).length > 0 ? out : undefined;
-  }
+  let saveError = $state(false);
 
   async function persist(): Promise<void> {
-    const date = nav.date;
-    const entry: DayEntry = { date, habits: { ...$state.snapshot(habits) } };
-    const c = cleanCycle(cycle);
-    if (c) entry.cycle = c;
-    if (Object.keys(entry.habits).length === 0 && !entry.cycle) {
-      await db.day_entries.delete(date);
-    } else {
-      await saveDayEntry(entry);
+    const entry: DayEntry = {
+      date: nav.date,
+      habits: { ...$state.snapshot(habits) },
+      cycle: $state.snapshot(cycle)
+    };
+    try {
+      await putOrDeleteDayEntry(entry);
+      saveError = false;
+    } catch {
+      saveError = true;
     }
   }
 
@@ -119,6 +103,13 @@
     <div class="banner">
       <span>Letztes Backup liegt über 14 Tage zurück</span>
       <button onclick={() => nav.go('mehr')}>Zum Backup</button>
+    </div>
+  {/if}
+
+  {#if saveError}
+    <div class="banner error-banner">
+      <span>Speichern fehlgeschlagen — letzte Änderung ist nicht gesichert.</span>
+      <button onclick={() => void persist()}>Erneut versuchen</button>
     </div>
   {/if}
 
@@ -188,5 +179,10 @@
   .banner button {
     min-height: 44px;
     flex-shrink: 0;
+  }
+
+  .error-banner {
+    background: var(--period-soft);
+    border-color: var(--period);
   }
 </style>

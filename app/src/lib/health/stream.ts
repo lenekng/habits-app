@@ -123,7 +123,14 @@ export async function parseHealthExport(
   };
 
   const breathe = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
-  const emitProgress = (): void => onProgress({ bytesRead, totalBytes: file.size, recordCounts });
+  // Gedrosselt: pro Chunk emittieren hieße bei großen Dateien tausende Re-Renders.
+  let lastProgressAt = 0;
+  const emitProgress = (force = false): void => {
+    const now = Date.now();
+    if (!force && now - lastProgressAt < 150) return;
+    lastProgressAt = now;
+    onProgress({ bytesRead, totalBytes: file.size, recordCounts });
+  };
 
   const reader = file.stream().getReader();
   try {
@@ -153,7 +160,7 @@ export async function parseHealthExport(
     }
     if (pending !== null) {
       processChunk(pending, true);
-      emitProgress();
+      emitProgress(true);
     }
 
     if (mode === null) throw new Error('Die Datei ist leer.');

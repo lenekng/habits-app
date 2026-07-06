@@ -9,7 +9,6 @@
     temperature: 'Basaltemperatur',
     mucus: 'Zervixschleim',
     spotting: 'Zwischenblutung',
-    midPain: 'Mittelschmerz',
     breastTenderness: 'Brustspannen'
   };
 
@@ -77,9 +76,9 @@
   Export.xml funktioniert ebenfalls.
 </p>
 <p class="muted">
-  Importiert werden Blutung, Basaltemperatur, Zervixschleim, Zwischenblutung, Mittelschmerz
-  und Brustspannen. Manuell eingetragene Werte werden nie überschrieben; ein erneuter Import
-  derselben Datei ändert nichts.
+  Importiert werden Blutung, Basaltemperatur, Zervixschleim, Zwischenblutung und Brustspannen.
+  Perioden-Einträge ohne Stärkeangabe werden als „leicht" übernommen. Manuell eingetragene
+  Werte werden nie überschrieben; ein erneuter Import derselben Datei ändert nichts.
 </p>
 
 <label class="file-button" class:disabled={busy}>

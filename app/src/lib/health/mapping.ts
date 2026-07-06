@@ -8,20 +8,13 @@ import {
   type Temperature
 } from '../types';
 
-export type PatchField =
-  | 'bleeding'
-  | 'temperature'
-  | 'mucus'
-  | 'spotting'
-  | 'midPain'
-  | 'breastTenderness';
+export type PatchField = 'bleeding' | 'temperature' | 'mucus' | 'spotting' | 'breastTenderness';
 
 export const PATCH_FIELDS: readonly PatchField[] = [
   'bleeding',
   'temperature',
   'mucus',
   'spotting',
-  'midPain',
   'breastTenderness'
 ];
 
@@ -30,26 +23,28 @@ export type CyclePatch = Pick<CycleObservation, PatchField>;
 export type FieldCounts = Record<PatchField, number>;
 
 export function emptyFieldCounts(): FieldCounts {
-  return { bleeding: 0, temperature: 0, mucus: 0, spotting: 0, midPain: 0, breastTenderness: 0 };
+  return { bleeding: 0, temperature: 0, mucus: 0, spotting: 0, breastTenderness: 0 };
 }
 
 export type Candidate =
   | { field: 'bleeding'; date: string; value: Bleeding }
   | { field: 'mucus'; date: string; value: Mucus }
   | { field: 'temperature'; date: string; value: Temperature }
-  | { field: 'spotting' | 'midPain' | 'breastTenderness'; date: string; value: true };
+  | { field: 'spotting' | 'breastTenderness'; date: string; value: true };
 
 // „…None" fehlt bewusst: keine Blutung → Record überspringen.
 // Die VaginalBleeding-Varianten sind die ab iOS 18 umbenannten Werte.
+// Unspecified → 'light': konservativ, damit ein bloßer Perioden-Toggle ohne
+// Stärkeangabe nie eine echte Stärkeangabe desselben Tages überstimmt.
 const BLEEDING_VALUES: { [value: string]: Bleeding | undefined } = {
   HKCategoryValueMenstrualFlowLight: 'light',
   HKCategoryValueMenstrualFlowMedium: 'medium',
   HKCategoryValueMenstrualFlowHeavy: 'heavy',
-  HKCategoryValueMenstrualFlowUnspecified: 'medium',
+  HKCategoryValueMenstrualFlowUnspecified: 'light',
   HKCategoryValueVaginalBleedingLight: 'light',
   HKCategoryValueVaginalBleedingMedium: 'medium',
   HKCategoryValueVaginalBleedingHeavy: 'heavy',
-  HKCategoryValueVaginalBleedingUnspecified: 'medium'
+  HKCategoryValueVaginalBleedingUnspecified: 'light'
 };
 
 // Näherung ans Sensiplan-Schema: Sticky/Creamy → S, Watery/EggWhite → S+.
@@ -61,11 +56,12 @@ const MUCUS_VALUES: { [value: string]: Mucus | undefined } = {
   HKCategoryValueCervicalMucusQualityEggWhite: 'S+'
 };
 
+// AbdominalCramps wird bewusst NICHT importiert: meist Menstruations-, nicht
+// Mittelschmerz — falsche Ovulationsmarker wären schlimmer als fehlende.
 const TYPE_FLOW = 'HKCategoryTypeIdentifierMenstrualFlow';
 const TYPE_MUCUS = 'HKCategoryTypeIdentifierCervicalMucusQuality';
 const TYPE_TEMP = 'HKQuantityTypeIdentifierBasalBodyTemperature';
 const TYPE_SPOTTING = 'HKCategoryTypeIdentifierIntermenstrualBleeding';
-const TYPE_MIDPAIN = 'HKCategoryTypeIdentifierAbdominalCramps';
 const TYPE_BREAST = 'HKCategoryTypeIdentifierBreastPain';
 
 // startDate wie „2024-05-12 07:31:00 +0200": der Offset ist bereits die lokale
@@ -111,8 +107,6 @@ export function recordToCandidate(
     }
     case TYPE_SPOTTING:
       return { field: 'spotting', date: start.date, value: true };
-    case TYPE_MIDPAIN:
-      return { field: 'midPain', date: start.date, value: true };
     case TYPE_BREAST:
       return { field: 'breastTenderness', date: start.date, value: true };
     default:

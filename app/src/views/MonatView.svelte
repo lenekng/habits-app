@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { db, activeHabits, saveDayEntry } from '../lib/db';
+  import { db, activeHabits, putOrDeleteDayEntry } from '../lib/db';
   import { daysInMonth, todayISO } from '../lib/date';
   import { nav } from '../lib/nav.svelte';
   import type { Bleeding, CycleObservation, DayEntry, HabitDefinition, HabitValue } from '../lib/types';
@@ -73,20 +73,17 @@
     month = d.getMonth() + 1;
   }
 
-  function isCycleEmpty(c: CycleObservation | undefined): boolean {
-    return !c || Object.values(c).every((v) => v === undefined);
-  }
+  let saveError = $state(false);
 
-  // Leere Entries (keine Habits, kein Zyklus) werden gelöscht statt gespeichert:
-  // "kein Eintrag" muss von "nein" unterscheidbar bleiben.
-  function persist(entry: DayEntry): void {
+  async function persist(entry: DayEntry): Promise<void> {
     const plain = $state.snapshot(entry) as DayEntry;
-    if (Object.keys(plain.habits).length === 0 && isCycleEmpty(plain.cycle)) {
-      delete entries[plain.date];
-      void db.day_entries.delete(plain.date);
-    } else {
-      entries[plain.date] = plain;
-      void saveDayEntry(plain);
+    try {
+      const stored = await putOrDeleteDayEntry(plain);
+      if (stored) entries[plain.date] = stored;
+      else delete entries[plain.date];
+      saveError = false;
+    } catch {
+      saveError = true;
     }
   }
 
@@ -96,8 +93,8 @@
     if (value === undefined) delete habitsMap[habitId];
     else habitsMap[habitId] = value;
     const entry: DayEntry = { date, habits: habitsMap };
-    if (existing && !isCycleEmpty(existing.cycle)) entry.cycle = existing.cycle;
-    persist(entry);
+    if (existing?.cycle) entry.cycle = existing.cycle;
+    void persist(entry);
   }
 
   function setBleeding(date: string, value: Bleeding | undefined): void {
@@ -105,9 +102,15 @@
     const cycle: CycleObservation = { ...(existing?.cycle ?? {}) };
     if (value === undefined) delete cycle.bleeding;
     else cycle.bleeding = value;
-    const entry: DayEntry = { date, habits: { ...(existing?.habits ?? {}) } };
-    if (!isCycleEmpty(cycle)) entry.cycle = cycle;
-    persist(entry);
+    void persist({ date, habits: { ...(existing?.habits ?? {}) }, cycle });
+  }
+
+  function setSpotting(date: string, value: boolean | undefined): void {
+    const existing = entries[date];
+    const cycle: CycleObservation = { ...(existing?.cycle ?? {}) };
+    if (value) cycle.spotting = true;
+    else delete cycle.spotting;
+    void persist({ date, habits: { ...(existing?.habits ?? {}) }, cycle });
   }
 
   type HabitMarker =
@@ -260,12 +263,23 @@
         if (cur.habit) setHabitValue(cur.date, cur.habit.id, v);
       }}
       onSetBleeding={(v) => setBleeding(cur.date, v)}
+      onSetSpotting={(v) => setSpotting(cur.date, v)}
       onClose={() => (edit = null)}
     />
+  {/if}
+
+  {#if saveError}
+    <p class="save-error">Speichern fehlgeschlagen — Änderung ist nicht gesichert.</p>
   {/if}
 </section>
 
 <style>
+  .save-error {
+    color: var(--period);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
   .month-nav {
     display: flex;
     align-items: center;
