@@ -91,10 +91,14 @@
           return { day_entries, habit_definitions, cycles, settings };
         }
       );
+      const now = new Date().toISOString();
+      data.settings = [
+        ...data.settings.filter((s) => s.key !== 'lastBackupAt'),
+        { key: 'lastBackupAt', value: now }
+      ];
       const payload = buildBackupPayload(data, SCHEMA_VERSION);
       const delivered = await deliverFile(backupFilename(todayISO()), serializeBackup(payload), 'application/json');
       if (delivered) {
-        const now = new Date().toISOString();
         await setSetting('lastBackupAt', now);
         lastBackupAt = now;
         backupStatus = { ok: true, text: 'Backup exportiert.' };

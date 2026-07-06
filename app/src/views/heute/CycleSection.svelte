@@ -35,12 +35,20 @@
     else update({ bleeding: b });
   }
 
+  let tempOutOfRange = $state(false);
+
   function setTempValue(raw: string): void {
     const v = parseFloat(raw.replace(',', '.'));
     if (raw.trim() === '' || Number.isNaN(v)) {
+      tempOutOfRange = false;
       update({}, ['temperature']);
       return;
     }
+    if (v < 34 || v > 42) {
+      tempOutOfRange = true;
+      return;
+    }
+    tempOutOfRange = false;
     const prev = cycle.temperature;
     const next: Temperature = {
       value: v,
@@ -153,6 +161,9 @@
       onchange={(e) => setTempTime(e.currentTarget.value)}
     />
   </div>
+  {#if tempOutOfRange}
+    <p class="hint warn">Wert außerhalb von 34–42 °C — wurde nicht gespeichert.</p>
+  {/if}
   {#if cycle.temperature}
     <label class="check">
       <input
@@ -316,6 +327,10 @@
   .hint {
     margin: 0.4rem 0 0;
     font-size: 0.85rem;
+  }
+
+  .warn {
+    color: var(--period);
   }
 
   textarea {
