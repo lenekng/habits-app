@@ -1,7 +1,12 @@
 <script lang="ts">
+  import TrendCharts from './analyse/TrendCharts.svelte';
+  import PhaseProfiles from './analyse/PhaseProfiles.svelte';
+  import CorrelationMatrix from './analyse/CorrelationMatrix.svelte';
 </script>
 
 <section class="view">
   <h1>Analyse</h1>
-  <p class="muted">Graphen, Phasen-Profile und Korrelationsmatrix kommen in v2.</p>
+  <TrendCharts />
+  <PhaseProfiles />
+  <CorrelationMatrix />
 </section>
