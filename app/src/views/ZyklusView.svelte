@@ -3,7 +3,9 @@
   import { buildCycleIndex, cycleLengthStats, type CycleInfo } from '../lib/cycles';
   import { todayISO } from '../lib/date';
   import type { DayEntry } from '../lib/types';
+  import { predictNextPeriod } from '../lib/prediction';
   import Kurvenblatt from './zyklus/Kurvenblatt.svelte';
+  import PredictionCard from './zyklus/PredictionCard.svelte';
   import DayDetail from './zyklus/DayDetail.svelte';
   import {
     buildChartModel,
@@ -31,6 +33,7 @@
   const isCurrent = $derived(selectedIdx === cycles.length - 1);
   const model = $derived(selected ? buildChartModel(selected, entries, today) : null);
   const stats = $derived(cycleLengthStats(cycles));
+  const prediction = $derived(cycles.length > 0 ? predictNextPeriod(cycles, today) : null);
 
   const validTempCount = $derived.by(() => {
     const c = selected;
@@ -123,6 +126,10 @@
       </p>
     </div>
   {:else if selected && model}
+    {#if prediction}
+      <PredictionCard {prediction} />
+    {/if}
+
     <div class="cycle-nav">
       <button
         class="nav-btn"
