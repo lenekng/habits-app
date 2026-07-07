@@ -65,11 +65,45 @@
     return `n=${stats.n} ${word} · Median ${fmtMedian(stats.median!)} · Spannweite ${stats.min}–${stats.max} Tage`;
   });
 
-  const history = $derived(cycles.map((c, i) => ({ c, i })).reverse());
+  function yearOf(iso: string): number {
+    return Number(iso.slice(0, 4));
+  }
+
+  const historyByYear = $derived.by(() => {
+    const groups: { year: number; items: { c: CycleInfo; i: number }[] }[] = [];
+    for (let i = cycles.length - 1; i >= 0; i--) {
+      const c = cycles[i]!;
+      const y = yearOf(c.startDate);
+      let g = groups.find((gr) => gr.year === y);
+      if (!g) {
+        g = { year: y, items: [] };
+        groups.push(g);
+      }
+      g.items.push({ c, i });
+    }
+    return groups;
+  });
+
+  let expandedYears = $state<Set<number>>(new Set());
+  let yearsInitialized = false;
+  $effect(() => {
+    if (yearsInitialized || cycles.length === 0) return;
+    yearsInitialized = true;
+    expandedYears = new Set([yearOf(cycles[cycles.length - 1]!.startDate)]);
+  });
+
+  function toggleYear(y: number): void {
+    const next = new Set(expandedYears);
+    if (next.has(y)) next.delete(y);
+    else next.add(y);
+    expandedYears = next;
+  }
 
   function selectCycle(i: number): void {
     selectedIdx = i;
     detail = null;
+    const y = yearOf(cycles[i]!.startDate);
+    if (!expandedYears.has(y)) expandedYears = new Set(expandedYears).add(y);
   }
 </script>
 
@@ -131,21 +165,44 @@
     {:else}
       <p class="stats">Noch kein abgeschlossener Zyklus — die Längen-Statistik folgt mit dem nächsten Zyklusbeginn.</p>
     {/if}
-    <ul class="history">
-      {#each history as h (h.c.startDate)}
-        <li>
-          <button class="hist-row" class:active={h.i === selectedIdx} onclick={() => selectCycle(h.i)}>
-            <span class="hist-date">{fmtDateLong(h.c.startDate)}</span>
-            <span class="hist-len">
-              {h.c.length !== undefined ? `${h.c.length} Tage` : `läuft (Tag ${Math.max(1, cycleDayOf(h.c, today))})`}
-            </span>
-            <span class="hist-ov">
-              {h.c.ovulationEstimate ? `ES ≈ Tag ${cycleDayOf(h.c, h.c.ovulationEstimate)}` : '—'}
+    <div class="years">
+      {#each historyByYear as group (group.year)}
+        {@const open = expandedYears.has(group.year)}
+        <div class="year">
+          <button class="year-head" onclick={() => toggleYear(group.year)} aria-expanded={open}>
+            <span class="chev">{open ? '▾' : '▸'}</span>
+            <span class="year-label">{group.year}</span>
+            <span class="year-count">
+              {group.items.length}
+              {group.items.length === 1 ? 'Zyklus' : 'Zyklen'}
             </span>
           </button>
-        </li>
+          {#if open}
+            <ul class="history">
+              {#each group.items as h (h.c.startDate)}
+                <li>
+                  <button
+                    class="hist-row"
+                    class:active={h.i === selectedIdx}
+                    onclick={() => selectCycle(h.i)}
+                  >
+                    <span class="hist-date">{fmtDateLong(h.c.startDate)}</span>
+                    <span class="hist-len">
+                      {h.c.length !== undefined
+                        ? `${h.c.length} Tage`
+                        : `läuft (Tag ${Math.max(1, cycleDayOf(h.c, today))})`}
+                    </span>
+                    <span class="hist-ov">
+                      {h.c.ovulationEstimate ? `ES ≈ Tag ${cycleDayOf(h.c, h.c.ovulationEstimate)}` : '—'}
+                    </span>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </div>
       {/each}
-    </ul>
+    </div>
   {/if}
 
   {#if detail}
@@ -217,10 +274,40 @@
     color: var(--muted);
   }
 
+  .years {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .year-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    text-align: left;
+  }
+
+  .chev {
+    color: var(--muted);
+    width: 0.9rem;
+  }
+
+  .year-label {
+    flex: 1;
+    font-weight: 600;
+  }
+
+  .year-count {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
   .history {
     list-style: none;
-    margin: 0;
-    padding: 0;
+    margin: 0.3rem 0 0;
+    padding: 0 0 0 0.5rem;
     display: flex;
     flex-direction: column;
     gap: 0.4rem;

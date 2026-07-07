@@ -45,6 +45,7 @@
   });
 
   const maxMean = $derived(Math.max(0, ...rows.map((r) => r.mean ?? 0)));
+  const noPhaseData = $derived(rows.every((r) => r.n === 0));
 
   const curve = $derived.by(() => {
     if (!data || !variable) return [];
@@ -94,21 +95,29 @@
       Noch keine Zyklen erkannt — Phasen-Profile erscheinen, sobald eine Periode eingetragen ist.
     </p>
   {:else}
-    <div class="bars">
-      {#each rows as row (row.phase)}
-        <div class="bar-row">
-          <span class="phase">{PHASE_LABELS[row.phase]}</span>
-          {#if row.n > 0 && row.mean !== undefined}
-            <div class="track">
-              <div class="bar" style="width: {maxMean > 0 ? (row.mean / maxMean) * 100 : 0}%"></div>
-            </div>
-            <span class="value">{row.mean.toFixed(1)} · n={row.n}</span>
-          {:else}
-            <span class="muted nodata">keine Daten</span>
-          {/if}
-        </div>
-      {/each}
-    </div>
+    {#if noPhaseData}
+      <p class="muted phase-empty">
+        Noch keine Phasen-Mittelwerte. Menstruation, Follikel- und Lutealphase lassen sich erst
+        trennen, wenn in einem Zyklus ein Temperaturanstieg erkannt wurde — dafür die Basaltemperatur
+        täglich morgens eintragen. Der Verlauf über den Zyklustag unten funktioniert schon jetzt.
+      </p>
+    {:else}
+      <div class="bars">
+        {#each rows as row (row.phase)}
+          <div class="bar-row">
+            <span class="phase">{PHASE_LABELS[row.phase]}</span>
+            {#if row.n > 0 && row.mean !== undefined}
+              <div class="track">
+                <div class="bar" style="width: {maxMean > 0 ? (row.mean / maxMean) * 100 : 0}%"></div>
+              </div>
+              <span class="value">{row.mean.toFixed(1)} · n={row.n}</span>
+            {:else}
+              <span class="muted nodata">keine Daten</span>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
 
     <h3>Verlauf über den Zyklus</h3>
     {#if chart}
@@ -197,6 +206,12 @@
   .nodata {
     grid-column: 2 / -1;
     font-size: 0.8rem;
+  }
+
+  .phase-empty {
+    font-size: 0.85rem;
+    line-height: 1.45;
+    margin: 0;
   }
 
   svg {

@@ -3,6 +3,7 @@
     habitVariable,
     cycleVariables,
     correlate,
+    autoLag,
     type VariableSpec,
     type CorrelationCell
   } from '../../lib/stats';
@@ -10,7 +11,6 @@
   import { correlationColor, correlationTextColor } from './statistik/color';
 
   let data = $state<AnalyseData | null>(null);
-  let lag = $state<0 | 1>(0);
   let selectedIds = $state<string[]>([]);
   let sel = $state<{ i: number; j: number } | null>(null);
 
@@ -36,14 +36,15 @@
     needsSelection ? allVars.filter((v) => selectedIds.includes(v.id)) : allVars
   );
 
+  const carryoverLabels = $derived(vars.filter((v) => v.carryover).map((v) => v.label));
+
   const matrix = $derived.by((): (CorrelationCell | null)[][] => {
     if (!data) return [];
     const d = data;
     return vars.map((rowVar, i) =>
       vars.map((colVar, j) => {
         if (i === j) return null;
-        if (lag === 0 && j < i) return null;
-        return correlate(d.entries, rowVar, colVar, lag, d.index);
+        return correlate(d.entries, rowVar, colVar, autoLag(rowVar), d.index);
       })
     );
   });
@@ -54,7 +55,7 @@
     const a = vars[sel.i];
     const b = vars[sel.j];
     if (!cell || !a || !b) return null;
-    return { a: a.label, b: b.label, r: cell.r, n: cell.n };
+    return { a: a.label, b: b.label, r: cell.r, n: cell.n, nextDay: a.carryover };
   });
 
   function toggleVar(id: string): void {
@@ -88,29 +89,35 @@
     </div>
   {/if}
 
-  <div class="segmented">
-    <button class:selected={lag === 0} onclick={() => (lag = 0)}>Gleicher Tag</button>
-    <button class:selected={lag === 1} onclick={() => (lag = 1)}>Folgetag</button>
-  </div>
-
-  {#if lag === 1}
-    <p class="muted explain">
-      Bei „Folgetag“ wird die Zeilen-Variable heute mit der Spalten-Variable morgen gepaart (z. B.
-      Alkohol heute ↔ Gut geschlafen morgen früh).
+  <div class="reading">
+    <p>
+      <strong>Wie liest man das?</strong> Ein Wert nahe <strong>+1</strong> heißt: steigt die eine
+      Größe, steigt meist auch die andere. Nahe <strong>−1</strong>: steigt die eine, sinkt die
+      andere. Um <strong>0</strong>: kein erkennbarer Zusammenhang.
     </p>
-  {/if}
+    {#if carryoverLabels.length > 0}
+      <p class="muted">
+        Zeilen mit <span class="pill">Folgetag</span> wirken erfahrungsgemäß erst am nächsten Tag —
+        dort wird der Zeilenwert von heute mit dem Spaltenwert von morgen verglichen (z. B. Alkohol
+        heute ↔ Schlaf morgen früh). Betrifft: {carryoverLabels.join(', ')}.
+      </p>
+    {/if}
+  </div>
 
   {#if vars.length < 2}
     <p class="muted">Mindestens zwei Variablen auswählen.</p>
   {:else}
     <div class="matrix-wrap">
-      <div class="matrix" style="grid-template-columns: 6.5rem repeat({vars.length}, 2.8rem);">
+      <div class="matrix" style="grid-template-columns: 7rem repeat({vars.length}, 2.8rem);">
         <div class="corner head"></div>
         {#each vars as v (v.id)}
           <div class="col-head head" title={v.label}><span>{short(v.label, 16)}</span></div>
         {/each}
         {#each vars as rowVar, i (rowVar.id)}
-          <div class="row-head" title={rowVar.label}>{short(rowVar.label, 14)}</div>
+          <div class="row-head" title={rowVar.label}>
+            <span class="row-name">{short(rowVar.label, 13)}</span>
+            {#if rowVar.carryover}<span class="pill">Folgetag</span>{/if}
+          </div>
           {#each vars as colVar, j (colVar.id)}
             {@const cell = matrix[i]?.[j] ?? null}
             {#if cell}
@@ -140,7 +147,7 @@
 
     {#if detail}
       <p class="detail">
-        {detail.a} ↔ {detail.b} ({lag === 1 ? 'Folgetag' : 'Gleicher Tag'}):
+        {detail.a} ↔ {detail.b} ({detail.nextDay ? 'Folgetag' : 'gleicher Tag'}):
         {#if detail.r !== undefined}
           ρ = {detail.r.toFixed(2)}, n = {detail.n}
         {:else}
@@ -150,9 +157,9 @@
     {/if}
 
     <div class="scale-legend">
-      <span class="muted">−1</span>
+      <span class="muted">−1 gegenläufig</span>
       <span class="gradient"></span>
-      <span class="muted">+1</span>
+      <span class="muted">+1 gleichläufig</span>
     </div>
   {/if}
 
@@ -175,20 +182,30 @@
     font-size: 0.85rem;
   }
 
-  .segmented {
-    display: flex;
-    gap: 0.4rem;
-    margin-bottom: 0.6rem;
+  .reading {
+    margin-bottom: 0.85rem;
   }
 
-  .segmented button {
-    flex: 1;
-    min-height: 44px;
+  .reading p {
+    margin: 0 0 0.4rem;
+    font-size: 0.82rem;
+    line-height: 1.4;
   }
 
-  .explain {
-    font-size: 0.8rem;
-    margin: 0 0 0.6rem;
+  .reading p:last-child {
+    margin-bottom: 0;
+  }
+
+  .pill {
+    display: inline-block;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 0.05rem 0.4rem;
+    font-size: 0.62rem;
+    font-weight: 600;
+    white-space: nowrap;
+    vertical-align: middle;
   }
 
   .matrix-wrap {
@@ -220,10 +237,16 @@
 
   .row-head {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
     height: 2.8rem;
     padding: 0 0.45rem;
     font-size: 0.72rem;
+    overflow: hidden;
+  }
+
+  .row-name {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -303,7 +326,8 @@
   }
 
   .gradient {
-    width: 7rem;
+    flex: 1;
+    max-width: 7rem;
     height: 0.55rem;
     border-radius: 4px;
     background: linear-gradient(90deg, #e34948, #f0efec, #2a78d6);

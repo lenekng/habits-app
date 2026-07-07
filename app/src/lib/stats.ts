@@ -5,16 +5,36 @@ import type { CycleIndex, Phase } from './cycles';
 export interface VariableSpec {
   id: string;
   label: string;
+  // carryover: ein Verhalten am Tag d, das plausibel erst den Folgetag prägt
+  // (z. B. Alkohol → Schlaf/Stimmung am Morgen danach). Solche Variablen werden
+  // in der Korrelationsmatrix automatisch mit dem Folgetag gepaart (Lag 1).
+  carryover: boolean;
   extract: (entry: DayEntry | undefined, date: string, index: CycleIndex) => number | undefined;
 }
 
 const BLEEDING_LEVEL: Record<string, number> = { spotting: 1, light: 2, medium: 3, heavy: 4 };
 const MUCUS_LEVEL: Record<string, number> = { t: 0, none: 1, f: 2, S: 3, 'S+': 4 };
 
+// Habits, deren Wirkung sich typischerweise erst am nächsten Tag zeigt.
+// Zustände, die ohnehin über Tage anhalten (Erkältung, Urlaub, Medikamente,
+// auswärts geschlafen), sind bewusst NICHT dabei — dort wäre ein Folgetag-
+// Zusammenhang bloß die Fortdauer des Zustands, kein Einfluss.
+const CARRYOVER_HABIT_IDS = new Set([
+  'alkohol',
+  'sport',
+  'stress',
+  'streit',
+  'geweint',
+  'gv',
+  'ernaehrung',
+  'soziale_kontakte'
+]);
+
 export function habitVariable(habit: HabitDefinition): VariableSpec {
   return {
     id: habit.id,
     label: habit.name,
+    carryover: CARRYOVER_HABIT_IDS.has(habit.id),
     extract: (entry) => {
       const v: HabitValue | undefined = entry?.habits[habit.id];
       if (v === undefined) return undefined;
@@ -25,11 +45,16 @@ export function habitVariable(habit: HabitDefinition): VariableSpec {
   };
 }
 
+export function autoLag(row: VariableSpec): 0 | 1 {
+  return row.carryover ? 1 : 0;
+}
+
 export function cycleVariables(): VariableSpec[] {
   return [
     {
       id: 'temperatur',
       label: 'Basaltemperatur',
+      carryover: false,
       extract: (entry) => {
         const t = entry?.cycle?.temperature;
         return t && !t.excluded ? t.value : undefined;
@@ -38,22 +63,26 @@ export function cycleVariables(): VariableSpec[] {
     {
       id: 'blutung',
       label: 'Blutungsstärke',
+      carryover: false,
       extract: (entry) =>
         entry?.cycle?.bleeding ? BLEEDING_LEVEL[entry.cycle.bleeding] : undefined
     },
     {
       id: 'schleim',
       label: 'Zervixschleim-Qualität',
+      carryover: false,
       extract: (entry) => (entry?.cycle?.mucus ? MUCUS_LEVEL[entry.cycle.mucus] : undefined)
     },
     {
       id: 'zyklustag',
       label: 'Zyklustag',
+      carryover: false,
       extract: (_e, date, index) => index.cycleDayByDate.get(date)
     },
     {
       id: 'lutealphase',
       label: 'Lutealphase (ja/nein)',
+      carryover: false,
       extract: (_e, date, index) => {
         const p = index.phaseByDate.get(date);
         if (p === undefined || p === 'unbestimmt') return undefined;

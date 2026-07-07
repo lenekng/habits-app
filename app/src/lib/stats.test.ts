@@ -1,10 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { buildCycleIndex } from './cycles';
-import { correlate, habitVariable, phaseProfile, spearman } from './stats';
+import { autoLag, correlate, cycleVariables, habitVariable, phaseProfile, spearman } from './stats';
 import type { DayEntry, HabitDefinition } from './types';
 
 const alkohol: HabitDefinition = { id: 'alkohol', name: 'Alkohol', type: 'scale4', sortOrder: 1 };
 const schlaf: HabitDefinition = { id: 'schlaf', name: 'Gut geschlafen', type: 'scale4', sortOrder: 2 };
+
+describe('autoLag / carryover', () => {
+  it('nachwirkende Habits (Alkohol) → Lag 1', () => {
+    expect(autoLag(habitVariable(alkohol))).toBe(1);
+  });
+
+  it('Ergebnis-Habits (Gut geschlafen) → Lag 0', () => {
+    expect(autoLag(habitVariable(schlaf))).toBe(0);
+  });
+
+  it('Zyklus-Variablen sind nie nachwirkend', () => {
+    expect(cycleVariables().every((v) => v.carryover === false)).toBe(true);
+  });
+
+  it('unbekannte/eigene Habits sind standardmäßig nicht nachwirkend', () => {
+    const custom: HabitDefinition = { id: 'kaelte_dusche', name: 'Kälte-Dusche', type: 'bool', sortOrder: 9 };
+    expect(autoLag(habitVariable(custom))).toBe(0);
+  });
+});
 
 function day(date: string, habits: DayEntry['habits']): DayEntry {
   return { date, habits };
