@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { buildCycleIndex } from './cycles';
-import { autoLag, correlate, cycleVariables, habitVariable, phaseProfile, spearman } from './stats';
+import {
+  autoLag,
+  correlate,
+  cycleVariables,
+  habitVariable,
+  meanByCycleDay,
+  phaseProfile,
+  spearman
+} from './stats';
 import type { DayEntry, HabitDefinition } from './types';
 
 const alkohol: HabitDefinition = { id: 'alkohol', name: 'Alkohol', type: 'scale4', sortOrder: 1 };
@@ -78,6 +86,20 @@ describe('correlate', () => {
     const cell = correlate(sparse, habitVariable(alkohol), habitVariable(schlaf), 0, EMPTY_INDEX);
     expect(cell.n).toBe(0);
     expect(cell.r).toBeUndefined();
+  });
+});
+
+describe('meanByCycleDay', () => {
+  it('mittelt gleiche Zyklustage über mehrere Zyklen und zählt n', () => {
+    const entries: DayEntry[] = [
+      { date: '2026-01-01', habits: { schlaf: 2 }, cycle: { bleeding: 'medium' } },
+      { date: '2026-01-02', habits: { schlaf: 1 } },
+      { date: '2026-02-01', habits: { schlaf: 4 }, cycle: { bleeding: 'medium' } }
+    ];
+    const index = buildCycleIndex(entries);
+    const curve = meanByCycleDay(entries, habitVariable(schlaf), index);
+    expect(curve[0]).toEqual({ day: 1, mean: 3, n: 2 });
+    expect(curve[1]).toEqual({ day: 2, mean: 1, n: 1 });
   });
 });
 

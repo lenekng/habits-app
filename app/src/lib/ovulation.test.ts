@@ -43,6 +43,15 @@ describe('evaluateTempShift', () => {
     expect(r.confirmedDay).toBe('2026-01-10');
   });
 
+  it('Ausnahme 2: der Ausreißer darf auch die dritte Messung sein', () => {
+    const r = evaluateTempShift(series([...LOW6, 36.7, 36.7, 36.5, 36.8]));
+    expect(r.found).toBe(true);
+    expect(r.rule).toBe('ausnahme2');
+    expect(r.bracketedDay).toBe('2026-01-09');
+    expect(r.firstHighDay).toBe('2026-01-07');
+    expect(r.confirmedDay).toBe('2026-01-10');
+  });
+
   it('Ausnahme 2 gilt nicht, wenn der vierte Wert < 0,2 °C darüber liegt', () => {
     const r = evaluateTempShift(series([...LOW6, 36.7, 36.5, 36.7, 36.65]));
     expect(r.found).toBe(false);

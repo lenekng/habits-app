@@ -107,4 +107,19 @@ describe('cycleLengthStats', () => {
     expect(stats.max).toBe(30);
     expect(stats.median).toBe(26);
   });
+
+  it('interpoliert den Median bei gerader Zyklusanzahl', () => {
+    const entries = [
+      bleedingEntry('2026-01-01', 'medium'),
+      bleedingEntry('2026-01-22', 'medium'),
+      bleedingEntry('2026-02-17', 'medium'),
+      bleedingEntry('2026-03-19', 'medium'),
+      bleedingEntry('2026-04-21', 'medium')
+    ];
+    const stats = cycleLengthStats(detectCycles(entries));
+    expect(stats.n).toBe(4);
+    expect(stats.min).toBe(21);
+    expect(stats.max).toBe(33);
+    expect(stats.median).toBe(28);
+  });
 });
