@@ -232,7 +232,7 @@
       <span class="item"><span class="no-mark"></span> Nein (erfasst)</span>
       <span class="item">
         <span class="scale s1"></span><span class="scale s2"></span><span class="scale s3"
-        ></span><span class="scale s4"></span> Skala 1&#8211;4
+        ></span><span class="scale s4"></span> Skala: 1 schlecht &#8594; 4 ideal
       </span>
       {#each choiceHabits as h (h.id)}
         <span class="item choice-legend">
@@ -459,20 +459,22 @@
     box-shadow: inset 0 0 0 1px rgba(11, 11, 11, 0.1);
   }
 
+  /* Bedeutungstragende Skala: 1 = schlecht (rot) … 4 = ideal (grün). Gilt seit
+     der Polaritäts-Vereinheitlichung für jeden scale4-Habit gleich. */
   .s1 {
-    background: #8fc39c;
+    background: #e34948;
   }
 
   .s2 {
-    background: #61a18c;
+    background: #ef8b3b;
   }
 
   .s3 {
-    background: #3a7d79;
+    background: #9dbf3e;
   }
 
   .s4 {
-    background: #1d5766;
+    background: #1baf7a;
   }
 
   .pdot {
