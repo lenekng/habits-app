@@ -1,4 +1,5 @@
-import type { Cycle, DayEntry, HabitDefinition, Setting } from './types';
+import type { Cycle, DayEntry, HabitDefinition, HabitValue, Setting } from './types';
+import { POLARITY_FLIP_IDS, flipScale4Value } from './polarity';
 
 export const BACKUP_APP_ID = 'habits-app';
 
@@ -149,6 +150,34 @@ export function summarizeBackup(payload: BackupPayload): BackupSummary {
     },
     dateRange: dates.length > 0 ? { from: dates[0]!, to: dates[dates.length - 1]! } : undefined
   };
+}
+
+// Hebt ein Backup auf das aktuelle Schema. Schema 1 → 2: Alkohol/Stress von
+// „1 = ideal" auf „4 = ideal" umdrehen (Werte 5−v, Label-Reihenfolge), damit
+// ein alter Export nach dem Restore nicht die alte Orientierung zurückholt.
+export function upgradeBackupPayload(payload: BackupPayload, targetSchemaVersion: number): BackupPayload {
+  if (payload.schemaVersion >= targetSchemaVersion) return payload;
+
+  const day_entries = payload.day_entries.map((e) => {
+    if (!e.habits) return e;
+    const habits = { ...e.habits };
+    let touched = false;
+    for (const id of POLARITY_FLIP_IDS) {
+      if (id in habits) {
+        habits[id] = flipScale4Value(habits[id]) as HabitValue;
+        touched = true;
+      }
+    }
+    return touched ? { ...e, habits } : e;
+  });
+
+  const habit_definitions = payload.habit_definitions.map((h) =>
+    POLARITY_FLIP_IDS.includes(h.id as never) && Array.isArray(h.scaleLabels)
+      ? { ...h, scaleLabels: [...h.scaleLabels].reverse() as HabitDefinition['scaleLabels'] }
+      : h
+  );
+
+  return { ...payload, schemaVersion: targetSchemaVersion, day_entries, habit_definitions };
 }
 
 export function backupFilename(dateISO: string): string {

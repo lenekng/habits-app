@@ -3,6 +3,7 @@
     habitVariable,
     cycleVariables,
     correlate,
+    correlationSentence,
     autoLag,
     type VariableSpec,
     type CorrelationCell
@@ -55,7 +56,14 @@
     const a = vars[sel.i];
     const b = vars[sel.j];
     if (!cell || !a || !b) return null;
-    return { a: a.label, b: b.label, r: cell.r, n: cell.n, nextDay: a.carryover };
+    return {
+      a: a.label,
+      b: b.label,
+      r: cell.r,
+      n: cell.n,
+      nextDay: a.carryover,
+      sentence: correlationSentence(a, b, cell.r, a.carryover)
+    };
   });
 
   function toggleVar(id: string): void {
@@ -97,9 +105,9 @@
     </p>
     {#if carryoverLabels.length > 0}
       <p class="muted">
-        Zeilen mit <span class="pill">Folgetag</span> wirken erfahrungsgemäß erst am nächsten Tag —
-        dort wird der Zeilenwert von heute mit dem Spaltenwert von morgen verglichen (z. B. Alkohol
-        heute ↔ Schlaf morgen früh). Betrifft: {carryoverLabels.join(', ')}.
+        Zeilen mit <span class="pill">Vortag</span> wirken erfahrungsgemäß erst am nächsten Tag —
+        dort wird der Zeilenwert vom Vortag mit dem Spaltenwert von heute verglichen (z. B. Alkohol
+        gestern ↔ Schlaf heute früh). Betrifft: {carryoverLabels.join(', ')}.
       </p>
     {/if}
   </div>
@@ -116,7 +124,7 @@
         {#each vars as rowVar, i (rowVar.id)}
           <div class="row-head" title={rowVar.label}>
             <span class="row-name">{short(rowVar.label, 13)}</span>
-            {#if rowVar.carryover}<span class="pill">Folgetag</span>{/if}
+            {#if rowVar.carryover}<span class="pill">Vortag</span>{/if}
           </div>
           {#each vars as colVar, j (colVar.id)}
             {@const cell = matrix[i]?.[j] ?? null}
@@ -147,13 +155,16 @@
 
     {#if detail}
       <p class="detail">
-        {detail.a} ↔ {detail.b} ({detail.nextDay ? 'Folgetag' : 'gleicher Tag'}):
+        {detail.a} ↔ {detail.b} ({detail.nextDay ? 'Vortag → heute' : 'gleicher Tag'}):
         {#if detail.r !== undefined}
           ρ = {detail.r.toFixed(2)}, n = {detail.n}
         {:else}
           ρ nicht berechenbar, n = {detail.n}
         {/if}
       </p>
+      {#if detail.sentence}
+        <p class="detail-plain">{detail.sentence}</p>
+      {/if}
     {/if}
 
     <div class="scale-legend">
@@ -315,6 +326,13 @@
     margin: 0.6rem 0 0;
     font-size: 0.85rem;
     font-weight: 500;
+  }
+
+  .detail-plain {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--text);
   }
 
   .scale-legend {

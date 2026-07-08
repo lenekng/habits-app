@@ -9,6 +9,10 @@ export interface VariableSpec {
   // (z. B. Alkohol → Schlaf/Stimmung am Morgen danach). Solche Variablen werden
   // in der Korrelationsmatrix automatisch mit dem Folgetag gepaart (Lag 1).
   carryover: boolean;
+  // Begriffe für das obere/untere Ende der Skala — für die Klartext-Erklärung
+  // einer Korrelation (z. B. Alkohol: high „keiner", low „viel").
+  highLabel: string;
+  lowLabel: string;
   extract: (entry: DayEntry | undefined, date: string, index: CycleIndex) => number | undefined;
 }
 
@@ -30,11 +34,22 @@ const CARRYOVER_HABIT_IDS = new Set([
   'soziale_kontakte'
 ]);
 
+function habitEndLabels(habit: HabitDefinition): { high: string; low: string } {
+  if (habit.type === 'scale4' && habit.scaleLabels) {
+    return { high: habit.scaleLabels[3], low: habit.scaleLabels[0] };
+  }
+  if (habit.type === 'bool') return { high: 'ja', low: 'nein' };
+  return { high: 'mehr', low: 'weniger' };
+}
+
 export function habitVariable(habit: HabitDefinition): VariableSpec {
+  const ends = habitEndLabels(habit);
   return {
     id: habit.id,
     label: habit.name,
     carryover: CARRYOVER_HABIT_IDS.has(habit.id),
+    highLabel: ends.high,
+    lowLabel: ends.low,
     extract: (entry) => {
       const v: HabitValue | undefined = entry?.habits[habit.id];
       if (v === undefined) return undefined;
@@ -55,6 +70,8 @@ export function cycleVariables(): VariableSpec[] {
       id: 'temperatur',
       label: 'Basaltemperatur',
       carryover: false,
+      highLabel: 'höher',
+      lowLabel: 'niedriger',
       extract: (entry) => {
         const t = entry?.cycle?.temperature;
         return t && !t.excluded ? t.value : undefined;
@@ -64,6 +81,8 @@ export function cycleVariables(): VariableSpec[] {
       id: 'blutung',
       label: 'Blutungsstärke',
       carryover: false,
+      highLabel: 'stärker',
+      lowLabel: 'schwächer',
       extract: (entry) =>
         entry?.cycle?.bleeding ? BLEEDING_LEVEL[entry.cycle.bleeding] : undefined
     },
@@ -71,18 +90,24 @@ export function cycleVariables(): VariableSpec[] {
       id: 'schleim',
       label: 'Zervixschleim-Qualität',
       carryover: false,
+      highLabel: 'hochwertiger',
+      lowLabel: 'trockener',
       extract: (entry) => (entry?.cycle?.mucus ? MUCUS_LEVEL[entry.cycle.mucus] : undefined)
     },
     {
       id: 'zyklustag',
       label: 'Zyklustag',
       carryover: false,
+      highLabel: 'später im Zyklus',
+      lowLabel: 'früh im Zyklus',
       extract: (_e, date, index) => index.cycleDayByDate.get(date)
     },
     {
       id: 'lutealphase',
       label: 'Lutealphase (ja/nein)',
       carryover: false,
+      highLabel: 'Lutealphase',
+      lowLabel: 'Follikelphase',
       extract: (_e, date, index) => {
         const p = index.phaseByDate.get(date);
         if (p === undefined || p === 'unbestimmt') return undefined;
@@ -90,6 +115,22 @@ export function cycleVariables(): VariableSpec[] {
       }
     }
   ];
+}
+
+// Klartext-Erklärung einer Korrelation, die die Skalenrichtung schon einrechnet.
+// Anker ist die Spalte („heute"): bei carryover ist die Zeile der Vortag.
+export function correlationSentence(
+  row: VariableSpec,
+  col: VariableSpec,
+  r: number | undefined,
+  carryover: boolean
+): string {
+  if (r === undefined) return '';
+  const colWord = r >= 0 ? col.highLabel : col.lowLabel;
+  const when = carryover
+    ? `War „${row.label}" am Vortag Richtung „${row.highLabel}",`
+    : `An Tagen mit „${row.label}" Richtung „${row.highLabel}"`;
+  return `${when} war „${col.label}" eher „${colWord}".`;
 }
 
 // Durchschnittsränge bei Bindungen (fractional ranking) — Standard für Spearman.
