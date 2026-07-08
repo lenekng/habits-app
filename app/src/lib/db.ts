@@ -1,7 +1,8 @@
 import Dexie, { type Table } from 'dexie';
 import type { Cycle, CycleObservation, DayEntry, HabitDefinition, Setting } from './types';
+import { POLARITY_FLIP_IDS, flipScale4Value } from './polarity';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export class HabitsDB extends Dexie {
   day_entries!: Table<DayEntry, string>;
@@ -16,6 +17,28 @@ export class HabitsDB extends Dexie {
       habit_definitions: 'id, sortOrder',
       cycles: 'startDate',
       settings: 'key'
+    });
+    // v2: Skalen-Polarität vereinheitlicht (4 = Idealzustand). Alkohol & Stress
+    // umgedreht — Werte v→5−v und Label-Reihenfolge, damit jeder Tag denselben
+    // Begriff wie vorher zeigt, nur unter neuer Nummer.
+    this.version(2).upgrade(async (tx) => {
+      await tx
+        .table('habit_definitions')
+        .toCollection()
+        .modify((h: HabitDefinition) => {
+          if (POLARITY_FLIP_IDS.includes(h.id as never) && Array.isArray(h.scaleLabels)) {
+            h.scaleLabels = [...h.scaleLabels].reverse() as HabitDefinition['scaleLabels'];
+          }
+        });
+      await tx
+        .table('day_entries')
+        .toCollection()
+        .modify((e: DayEntry) => {
+          if (!e.habits) return;
+          for (const id of POLARITY_FLIP_IDS) {
+            if (id in e.habits) e.habits[id] = flipScale4Value(e.habits[id]) as never;
+          }
+        });
     });
   }
 }
@@ -36,8 +59,8 @@ export const DEFAULT_HABITS: HabitDefinition[] = [
     choices: ['Volleyball', 'Beachvolleyball', 'Gym', 'Laufen', 'Sonstiges'],
     sortOrder: 9
   },
-  { id: 'alkohol', name: 'Alkohol', type: 'scale4', scaleLabels: ['keiner', 'wenig', 'mittel', 'viel'], sortOrder: 10 },
-  { id: 'stress', name: 'Stress', type: 'scale4', scaleLabels: ['wenig', 'mittel', 'viel', 'sehr viel'], sortOrder: 11 },
+  { id: 'alkohol', name: 'Alkohol', type: 'scale4', scaleLabels: ['viel', 'mittel', 'wenig', 'keiner'], sortOrder: 10 },
+  { id: 'stress', name: 'Stress', type: 'scale4', scaleLabels: ['sehr viel', 'viel', 'mittel', 'wenig'], sortOrder: 11 },
   { id: 'gefuehle', name: 'Gefühle', type: 'scale4', scaleLabels: ['schlecht', 'eher schlecht', 'eher gut', 'gut'], sortOrder: 12 },
   { id: 'schlaf', name: 'Gut geschlafen', type: 'scale4', scaleLabels: ['schlecht', 'mäßig', 'gut', 'sehr gut'], sortOrder: 13 },
   { id: 'ernaehrung', name: 'Ernährung', type: 'scale4', scaleLabels: ['ungesund', 'eher ungesund', 'eher gesund', 'gesund'], sortOrder: 14 }

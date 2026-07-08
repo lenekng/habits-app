@@ -9,6 +9,7 @@
     serializeBackup,
     serializeCsv,
     summarizeBackup,
+    upgradeBackupPayload,
     validateBackupPayload,
     type BackupPayload,
     type BackupSummary
@@ -155,7 +156,7 @@
   }
 
   async function performRestore(): Promise<void> {
-    const payload = restorePayload;
+    const payload = restorePayload && upgradeBackupPayload(restorePayload, SCHEMA_VERSION);
     if (!payload) return;
     restoreBusy = true;
     restoreStatus = null;
