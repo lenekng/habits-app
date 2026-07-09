@@ -1,4 +1,6 @@
 import { addDays } from '../../lib/date';
+import { locale, getLang } from '../../lib/i18n/i18n.svelte';
+import type { MessageKey } from '../../lib/i18n/messages';
 import type { CycleInfo } from '../../lib/cycles';
 import type { TempShiftRule } from '../../lib/ovulation';
 import type { DayEntry } from '../../lib/types';
@@ -52,7 +54,7 @@ export function cycleDayOf(cycle: CycleInfo, date: string): number {
 
 export function fmtDateLong(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y!, m! - 1, d!).toLocaleDateString('de-DE', {
+  return new Date(y!, m! - 1, d!).toLocaleDateString(locale(), {
     day: 'numeric',
     month: 'long',
     year: 'numeric'
@@ -60,7 +62,8 @@ export function fmtDateLong(iso: string): string {
 }
 
 export function fmtTemp(v: number): string {
-  return v.toFixed(2).replace('.', ',');
+  const s = v.toFixed(2);
+  return getLang() === 'en' ? s : s.replace('.', ',');
 }
 
 export function buildChartModel(cycle: CycleInfo, entries: DayEntry[], today: string): ChartModel {
@@ -151,15 +154,20 @@ export function buildChartModel(cycle: CycleInfo, entries: DayEntry[], today: st
   return model;
 }
 
-export interface Explanation {
-  title: string;
-  lines: string[];
+export interface ExplanationLine {
+  key: MessageKey;
+  params?: Record<string, string | number>;
 }
 
-const RULE_TITLES: Record<TempShiftRule, string> = {
-  standard: 'Temperaturanstieg bestätigt: 3-über-6-Regel',
-  ausnahme1: 'Temperaturanstieg bestätigt: Ausnahmeregel 1 (4. Wert)',
-  ausnahme2: 'Temperaturanstieg bestätigt: Ausnahmeregel 2 (Ausreißer ausgeklammert)'
+export interface Explanation {
+  titleKey: MessageKey;
+  lines: ExplanationLine[];
+}
+
+const RULE_TITLE_KEYS: Record<TempShiftRule, MessageKey> = {
+  standard: 'rule.titleStandard',
+  ausnahme1: 'rule.titleAusnahme1',
+  ausnahme2: 'rule.titleAusnahme2'
 };
 
 export function ruleExplanation(cycle: CycleInfo, validTempCount: number): Explanation {
@@ -167,57 +175,38 @@ export function ruleExplanation(cycle: CycleInfo, validTempCount: number): Expla
 
   if (!s.found) {
     if (validTempCount < 7) {
-      return {
-        title: 'Zu wenige Temperaturwerte',
-        lines: [
-          'Für die Auswertung braucht es mindestens 6 Messungen als Vergleichsbasis plus eine erste höhere Messung. Am besten täglich direkt nach dem Aufwachen messen — ausgeklammerte Werte zählen dabei nicht mit.'
-        ]
-      };
+      return { titleKey: 'rule.titleTooFew', lines: [{ key: 'rule.bodyTooFew' }] };
     }
-    return {
-      title: 'Noch kein Temperaturanstieg erkennbar',
-      lines: [
-        'Gesucht wird eine Messung über allen 6 vorangehenden Werten, gefolgt von 2 weiteren höheren Messungen; die dritte muss mindestens 0,2 °C über der Hilfslinie liegen (3-über-6-Regel). Sobald das eintritt, erscheint die Auswertung hier.'
-      ]
-    };
+    return { titleKey: 'rule.titleNoShift', lines: [{ key: 'rule.bodyNoShift' }] };
   }
 
   const cover = `${fmtTemp(s.coverline!)} °C`;
   const fhDay = cycleDayOf(cycle, s.firstHighDay!);
   const confDay = cycleDayOf(cycle, s.confirmedDay!);
-  const lines: string[] = [];
+  const lines: ExplanationLine[] = [];
 
   if (s.rule === 'standard') {
-    lines.push(
-      `3 Messungen liegen über der Hilfslinie (${cover} — das Maximum der 6 vorangehenden Werte), die dritte mindestens 0,2 °C darüber.`
-    );
+    lines.push({ key: 'rule.bodyStandard', params: { cover } });
   } else if (s.rule === 'ausnahme1') {
-    lines.push(
-      `Die dritte höhere Messung lag keine 0,2 °C über der Hilfslinie (${cover}). Nach Ausnahmeregel 1 wurde deshalb ein 4. Wert abgewartet — er muss nur über der Hilfslinie liegen.`
-    );
+    lines.push({ key: 'rule.bodyAusnahme1', params: { cover } });
   } else {
-    const bracket = s.bracketedDay ? ` (Tag ${cycleDayOf(cycle, s.bracketedDay)})` : '';
-    lines.push(
-      `Eine der 3 höheren Messungen fiel auf oder unter die Hilfslinie (${cover}) und wurde ausgeklammert${bracket}. Nach Ausnahmeregel 2 muss dafür die 4. Messung mindestens 0,2 °C über der Hilfslinie liegen.`
-    );
+    const bracketDay = s.bracketedDay ? cycleDayOf(cycle, s.bracketedDay) : 0;
+    lines.push({ key: 'rule.bodyAusnahme2', params: { cover, bracketDay } });
   }
 
-  lines.push(
-    `Erste höhere Messung: Tag ${fhDay} (${fmtDateLong(s.firstHighDay!)}), bestätigt an Tag ${confDay}. Der Eisprung liegt meist am Tag vor der ersten höheren Messung — geschätzt Tag ${fhDay - 1}.`
-  );
+  lines.push({
+    key: 'rule.bodyFirstHigh',
+    params: { fhDay, date: fmtDateLong(s.firstHighDay!), confDay, ovDay: fhDay - 1 }
+  });
 
   if (cycle.mucusPeakDay) {
     const mp = cycleDayOf(cycle, cycle.mucusPeakDay);
     if (cycle.mucusPlausible === false) {
-      lines.push(
-        `Hinweis: Der Schleimhöhepunkt (Tag ${mp}) liegt mehr als 3 Tage von der Eisprung-Schätzung entfernt. Temperatur- und Schleimbild passen nicht gut zusammen — Schätzung mit Vorsicht interpretieren.`
-      );
+      lines.push({ key: 'rule.bodyMucusMismatch', params: { mp } });
     } else if (cycle.mucusPlausible === true) {
-      lines.push(
-        `Der Schleimhöhepunkt (Tag ${mp}) passt zeitlich zur Temperaturauswertung und stützt die Schätzung.`
-      );
+      lines.push({ key: 'rule.bodyMucusMatch', params: { mp } });
     }
   }
 
-  return { title: RULE_TITLES[s.rule!], lines };
+  return { titleKey: RULE_TITLE_KEYS[s.rule!], lines };
 }

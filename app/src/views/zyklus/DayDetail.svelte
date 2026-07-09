@@ -1,17 +1,28 @@
 <script lang="ts">
   import { fade, fly } from 'svelte/transition';
-  import { BLEEDING_LABELS, MUCUS_LABELS } from '../../lib/types';
+  import { MUCUS_LABELS, type Bleeding, type Mucus } from '../../lib/types';
+  import { t } from '../../lib/i18n/i18n.svelte';
+  import type { MessageKey } from '../../lib/i18n/messages';
   import { fmtDateLong, fmtTemp, type ChartDay } from './kurvenblatt';
 
   let { day, onClose }: { day: ChartDay; onClose: () => void } = $props();
+
+  const bleedingKey = (b: Bleeding): MessageKey => `bleeding.${b}` as MessageKey;
+  const MUCUS_DESC: Record<Mucus, MessageKey> = {
+    t: 'mucus.t',
+    none: 'mucus.none',
+    f: 'mucus.f',
+    S: 'mucus.S',
+    'S+': 'mucus.Splus'
+  };
 
   const c = $derived(day.entry?.cycle);
 
   const extras = $derived.by(() => {
     const out: string[] = [];
-    if (c?.midPain) out.push('Mittelschmerz');
-    if (c?.breastTenderness) out.push('Brustspannen');
-    if (c?.spotting) out.push('Zwischenblutung');
+    if (c?.midPain) out.push(t('sign.midPain'));
+    if (c?.breastTenderness) out.push(t('sign.breastTenderness'));
+    if (c?.spotting) out.push(t('sign.spotting'));
     return out;
   });
 
@@ -23,55 +34,55 @@
   );
 </script>
 
-<button class="backdrop" transition:fade={{ duration: 150 }} onclick={onClose} aria-label="Schließen"></button>
+<button class="backdrop" transition:fade={{ duration: 150 }} onclick={onClose} aria-label={t('common.close')}></button>
 
 <div
   class="sheet"
   transition:fly={{ y: 240, duration: 200 }}
   role="dialog"
   aria-modal="true"
-  aria-label="Tagesdetails"
+  aria-label={t('day.aria')}
 >
   <header>
     <strong>{fmtDateLong(day.date)}</strong>
-    <span class="muted">Zyklustag {day.day}</span>
+    <span class="muted">{t('day.cycleDay', { day: day.day })}</span>
   </header>
 
   {#if hasData}
     <dl>
       {#if c?.temperature}
-        <dt>Temperatur</dt>
+        <dt>{t('chart.legendTemp')}</dt>
         <dd>
-          {fmtTemp(c.temperature.value)} °C um {c.temperature.time} Uhr
-          {#if c.temperature.excluded}<span class="tag">ausgeklammert</span>{/if}
-          {#if c.temperature.disturbed}<span class="tag">gestört</span>{/if}
+          {t('day.tempLine', { temp: fmtTemp(c.temperature.value), time: c.temperature.time })}
+          {#if c.temperature.excluded}<span class="tag">{t('chart.legendExcluded')}</span>{/if}
+          {#if c.temperature.disturbed}<span class="tag">{t('day.disturbedTag')}</span>{/if}
           {#if c.temperature.disturbanceNote}
-            <span class="note-line">Störung: {c.temperature.disturbanceNote}</span>
+            <span class="note-line">{t('day.disturbNote', { note: c.temperature.disturbanceNote })}</span>
           {/if}
         </dd>
       {/if}
       {#if c?.bleeding}
-        <dt>Blutung</dt>
-        <dd>{BLEEDING_LABELS[c.bleeding]}</dd>
+        <dt>{t('cycle.bleeding')}</dt>
+        <dd>{t(bleedingKey(c.bleeding))}</dd>
       {/if}
       {#if c?.mucus}
-        <dt>Zervixschleim</dt>
-        <dd>{MUCUS_LABELS[c.mucus].short} — {MUCUS_LABELS[c.mucus].description}</dd>
+        <dt>{t('cycle.mucus')}</dt>
+        <dd>{MUCUS_LABELS[c.mucus].short} — {t(MUCUS_DESC[c.mucus])}</dd>
       {/if}
       {#if extras.length > 0}
-        <dt>Zusatzzeichen</dt>
+        <dt>{t('cycle.extras')}</dt>
         <dd>{extras.join(', ')}</dd>
       {/if}
       {#if c?.note}
-        <dt>Notiz</dt>
+        <dt>{t('cycle.note')}</dt>
         <dd>{c.note}</dd>
       {/if}
     </dl>
   {:else}
-    <p class="muted">Keine Zyklusdaten für diesen Tag.</p>
+    <p class="muted">{t('day.noData')}</p>
   {/if}
 
-  <button class="close" onclick={onClose}>Schließen</button>
+  <button class="close" onclick={onClose}>{t('common.close')}</button>
 </div>
 
 <style>

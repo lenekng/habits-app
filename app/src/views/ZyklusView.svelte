@@ -2,6 +2,7 @@
   import { db } from '../lib/db';
   import { buildCycleIndex, cycleLengthStats, type CycleInfo } from '../lib/cycles';
   import { todayISO } from '../lib/date';
+  import { t, getLang } from '../lib/i18n/i18n.svelte';
   import type { DayEntry } from '../lib/types';
   import { predictNextPeriod } from '../lib/prediction';
   import Kurvenblatt from './zyklus/Kurvenblatt.svelte';
@@ -52,20 +53,25 @@
 
   function cycleLabel(c: CycleInfo): string {
     if (c.length !== undefined) {
-      return `Zyklus ab ${fmtDateLong(c.startDate)} (${c.length} Tage)`;
+      return t('zyklus.cycleFrom', { date: fmtDateLong(c.startDate), len: c.length });
     }
     const day = Math.max(1, cycleDayOf(c, today));
-    return `Zyklus ab ${fmtDateLong(c.startDate)} (Tag ${day})`;
+    return t('zyklus.cycleFromDay', { date: fmtDateLong(c.startDate), day });
   }
 
   function fmtMedian(m: number): string {
-    return Number.isInteger(m) ? String(m) : m.toFixed(1).replace('.', ',');
+    if (Number.isInteger(m)) return String(m);
+    return getLang() === 'en' ? m.toFixed(1) : m.toFixed(1).replace('.', ',');
   }
 
   const statsLine = $derived.by(() => {
     if (stats.n === 0) return null;
-    const word = stats.n === 1 ? 'Zyklus' : 'Zyklen';
-    return `n=${stats.n} ${word} · Median ${fmtMedian(stats.median!)} · Spannweite ${stats.min}–${stats.max} Tage`;
+    return t('zyklus.statsLine', {
+      n: stats.n,
+      median: fmtMedian(stats.median!),
+      min: stats.min!,
+      max: stats.max!
+    });
   });
 
   function yearOf(iso: string): number {
@@ -111,19 +117,14 @@
 </script>
 
 <section class="view">
-  <h1>Zyklus</h1>
+  <h1>{t('zyklus.heading')}</h1>
 
   {#if loading}
-    <p class="muted">Laden…</p>
+    <p class="muted">{t('common.loading')}</p>
   {:else if cycles.length === 0}
     <div class="empty">
-      <p><strong>Noch kein Zyklus erkannt.</strong></p>
-      <p>
-        Ein Zyklus beginnt mit dem ersten Tag echter Blutung. Trage dazu im Tagesformular die
-        Blutungsstärke <strong>leicht</strong>, <strong>mittel</strong> oder
-        <strong>stark</strong> ein — Schmierblutung allein zählt nicht als Zyklusbeginn. Danach
-        erscheint hier das Kurvenblatt mit Temperaturkurve, Schleim- und Blutungssymbolen.
-      </p>
+      <p><strong>{t('zyklus.emptyTitle')}</strong></p>
+      <p>{t('zyklus.emptyBody')}</p>
     </div>
   {:else if selected && model}
     {#if prediction}
@@ -135,7 +136,7 @@
         class="nav-btn"
         disabled={selectedIdx === 0}
         onclick={() => selectCycle(selectedIdx - 1)}
-        aria-label="Voriger Zyklus"
+        aria-label={t('zyklus.prevCycle')}
       >
         &lsaquo;
       </button>
@@ -144,7 +145,7 @@
         class="nav-btn"
         disabled={selectedIdx >= cycles.length - 1}
         onclick={() => selectCycle(selectedIdx + 1)}
-        aria-label="Nächster Zyklus"
+        aria-label={t('zyklus.nextCycle')}
       >
         &rsaquo;
       </button>
@@ -159,18 +160,18 @@
 
     {#if explanation}
       <div class="explain">
-        <strong>{explanation.title}</strong>
-        {#each explanation.lines as line (line)}
-          <p>{line}</p>
+        <strong>{t(explanation.titleKey)}</strong>
+        {#each explanation.lines as line, i (i)}
+          <p>{t(line.key, line.params)}</p>
         {/each}
       </div>
     {/if}
 
-    <h2>Zyklushistorie</h2>
+    <h2>{t('zyklus.history')}</h2>
     {#if statsLine}
       <p class="stats">{statsLine}</p>
     {:else}
-      <p class="stats">Noch kein abgeschlossener Zyklus — die Längen-Statistik folgt mit dem nächsten Zyklusbeginn.</p>
+      <p class="stats">{t('zyklus.noCompletedCycle')}</p>
     {/if}
     <div class="years">
       {#each historyByYear as group (group.year)}
@@ -179,10 +180,7 @@
           <button class="year-head" onclick={() => toggleYear(group.year)} aria-expanded={open}>
             <span class="chev">{open ? '▾' : '▸'}</span>
             <span class="year-label">{group.year}</span>
-            <span class="year-count">
-              {group.items.length}
-              {group.items.length === 1 ? 'Zyklus' : 'Zyklen'}
-            </span>
+            <span class="year-count">{t('zyklus.cyclesCount', { n: group.items.length })}</span>
           </button>
           {#if open}
             <ul class="history">
@@ -196,11 +194,13 @@
                     <span class="hist-date">{fmtDateLong(h.c.startDate)}</span>
                     <span class="hist-len">
                       {h.c.length !== undefined
-                        ? `${h.c.length} Tage`
-                        : `läuft (Tag ${Math.max(1, cycleDayOf(h.c, today))})`}
+                        ? t('zyklus.lenDays', { len: h.c.length })
+                        : t('zyklus.running', { day: Math.max(1, cycleDayOf(h.c, today)) })}
                     </span>
                     <span class="hist-ov">
-                      {h.c.ovulationEstimate ? `ES ≈ Tag ${cycleDayOf(h.c, h.c.ovulationEstimate)}` : '—'}
+                      {h.c.ovulationEstimate
+                        ? t('zyklus.ovDay', { day: cycleDayOf(h.c, h.c.ovulationEstimate) })
+                        : t('zyklus.dash')}
                     </span>
                   </button>
                 </li>

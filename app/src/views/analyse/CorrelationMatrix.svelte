@@ -1,13 +1,13 @@
 <script lang="ts">
   import {
-    habitVariable,
     cycleVariables,
     correlate,
-    correlationSentence,
     autoLag,
     type VariableSpec,
     type CorrelationCell
   } from '../../lib/stats';
+  import { t, getLang } from '../../lib/i18n/i18n.svelte';
+  import { localizeVariableSpec, localizedHabitVariable } from '../../lib/i18n/variables';
   import { loadAnalyseData, type AnalyseData } from './statistik/data';
   import { correlationColor, correlationTextColor } from './statistik/color';
 
@@ -28,7 +28,11 @@
 
   const allVars = $derived.by((): VariableSpec[] => {
     if (!data) return [];
-    return [...data.habits.map(habitVariable), ...cycleVariables()];
+    const lang = getLang();
+    return [
+      ...data.habits.map((h) => localizedHabitVariable(h, lang)),
+      ...cycleVariables().map((v) => localizeVariableSpec(v, lang))
+    ];
   });
 
   const needsSelection = $derived(allVars.length > 10);
@@ -56,14 +60,17 @@
     const a = vars[sel.i];
     const b = vars[sel.j];
     if (!cell || !a || !b) return null;
-    return {
-      a: a.label,
-      b: b.label,
-      r: cell.r,
-      n: cell.n,
-      nextDay: a.carryover,
-      sentence: correlationSentence(a, b, cell.r, a.carryover)
-    };
+    const colWord = cell.r === undefined ? '' : cell.r >= 0 ? b.highLabel : b.lowLabel;
+    const sentence =
+      cell.r === undefined
+        ? ''
+        : t(a.carryover ? 'corr.sentPrev' : 'corr.sentSame', {
+            row: a.label,
+            rowHigh: a.highLabel,
+            col: b.label,
+            colWord
+          });
+    return { a: a.label, b: b.label, r: cell.r, n: cell.n, nextDay: a.carryover, sentence };
   });
 
   function toggleVar(id: string): void {
@@ -78,14 +85,12 @@
   }
 </script>
 
-<h2>Korrelationen</h2>
+<h2>{t('corr.heading')}</h2>
 
 {#if !data}
-  <p class="muted">Laden…</p>
+  <p class="muted">{t('common.loading')}</p>
 {:else if data.entries.length < 10}
-  <p class="muted">
-    Noch zu wenig Daten — Korrelationen erscheinen ab 10 Tagen mit Einträgen.
-  </p>
+  <p class="muted">{t('corr.tooFewData')}</p>
 {:else}
   {#if needsSelection}
     <div class="chips">
@@ -98,22 +103,14 @@
   {/if}
 
   <div class="reading">
-    <p>
-      <strong>Wie liest man das?</strong> Ein Wert nahe <strong>+1</strong> heißt: steigt die eine
-      Größe, steigt meist auch die andere. Nahe <strong>−1</strong>: steigt die eine, sinkt die
-      andere. Um <strong>0</strong>: kein erkennbarer Zusammenhang.
-    </p>
+    <p><strong>{t('corr.howToReadTitle')}</strong> {t('corr.howToReadBody')}</p>
     {#if carryoverLabels.length > 0}
-      <p class="muted">
-        Zeilen mit <span class="pill">Vortag</span> wirken erfahrungsgemäß erst am nächsten Tag —
-        dort wird der Zeilenwert vom Vortag mit dem Spaltenwert von heute verglichen (z. B. Alkohol
-        gestern ↔ Schlaf heute früh). Betrifft: {carryoverLabels.join(', ')}.
-      </p>
+      <p class="muted">{t('corr.carryoverNote', { labels: carryoverLabels.join(', ') })}</p>
     {/if}
   </div>
 
   {#if vars.length < 2}
-    <p class="muted">Mindestens zwei Variablen auswählen.</p>
+    <p class="muted">{t('corr.selectHint')}</p>
   {:else}
     <div class="matrix-wrap">
       <div class="matrix" style="grid-template-columns: 7rem repeat({vars.length}, 2.8rem);">
@@ -124,7 +121,7 @@
         {#each vars as rowVar, i (rowVar.id)}
           <div class="row-head" title={rowVar.label}>
             <span class="row-name">{short(rowVar.label, 13)}</span>
-            {#if rowVar.carryover}<span class="pill">Vortag</span>{/if}
+            {#if rowVar.carryover}<span class="pill">{t('corr.pillPrevDay')}</span>{/if}
           </div>
           {#each vars as colVar, j (colVar.id)}
             {@const cell = matrix[i]?.[j] ?? null}
@@ -135,7 +132,7 @@
                 class:active={sel?.i === i && sel?.j === j}
                 style="background: {cell.r !== undefined ? correlationColor(cell.r) : 'var(--surface)'};"
                 onclick={() => (sel = { i, j })}
-                aria-label="Korrelation {rowVar.label} und {colVar.label}"
+                aria-label={t('corr.cellAria', { a: rowVar.label, b: colVar.label })}
               >
                 {#if cell.r !== undefined}
                   <span class="r" style="color: {correlationTextColor(cell.r)}">{cell.r.toFixed(2)}</span>
@@ -155,11 +152,11 @@
 
     {#if detail}
       <p class="detail">
-        {detail.a} ↔ {detail.b} ({detail.nextDay ? 'Vortag → heute' : 'gleicher Tag'}):
+        {detail.a} ↔ {detail.b} ({detail.nextDay ? t('corr.relPrevToday') : t('corr.relSameDay')}):
         {#if detail.r !== undefined}
-          ρ = {detail.r.toFixed(2)}, n = {detail.n}
+          {t('corr.rhoVal', { r: detail.r.toFixed(2), n: detail.n })}
         {:else}
-          ρ nicht berechenbar, n = {detail.n}
+          {t('corr.rhoNA', { n: detail.n })}
         {/if}
       </p>
       {#if detail.sentence}
@@ -168,16 +165,13 @@
     {/if}
 
     <div class="scale-legend">
-      <span class="muted">−1 gegenläufig</span>
+      <span class="muted">{t('corr.legendLow')}</span>
       <span class="gradient"></span>
-      <span class="muted">+1 gleichläufig</span>
+      <span class="muted">{t('corr.legendHigh')}</span>
     </div>
   {/if}
 
-  <p class="muted footnote">
-    Spearman-Rangkorrelation. Zellen mit n &lt; 20 sind ausgegraut. Bei vielen Zellen sind einzelne
-    „starke“ Werte durch Zufall zu erwarten — Hypothesen, keine Beweise.
-  </p>
+  <p class="muted footnote">{t('corr.footnote')}</p>
 {/if}
 
 <style>

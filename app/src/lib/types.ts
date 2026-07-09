@@ -65,10 +65,3 @@ export const MUCUS_LABELS: Record<Mucus, { short: string; description: string }>
 };
 
 export const BLEEDING_ORDER: Bleeding[] = ['spotting', 'light', 'medium', 'heavy'];
-
-export const BLEEDING_LABELS: Record<Bleeding, string> = {
-  spotting: 'Schmierblutung',
-  light: 'leicht',
-  medium: 'mittel',
-  heavy: 'stark'
-};

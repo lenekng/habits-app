@@ -1,19 +1,21 @@
 <script lang="ts">
   import {
-    habitVariable,
     cycleVariables,
     phaseProfile,
     meanByCycleDay,
     type VariableSpec
   } from '../../lib/stats';
   import type { Phase } from '../../lib/cycles';
+  import { t, getLang } from '../../lib/i18n/i18n.svelte';
+  import type { MessageKey } from '../../lib/i18n/messages';
+  import { localizeVariableSpec, localizedHabitVariable } from '../../lib/i18n/variables';
   import { loadAnalyseData, type AnalyseData } from './statistik/data';
 
-  const PHASE_LABELS: Record<Phase, string> = {
-    menstruation: 'Menstruation',
-    follikel: 'Follikelphase',
-    luteal: 'Lutealphase',
-    unbestimmt: 'Unbestimmt'
+  const PHASE_LABEL_KEYS: Record<Phase, MessageKey> = {
+    menstruation: 'phase.menstruation',
+    follikel: 'phase.follikel',
+    luteal: 'phase.luteal',
+    unbestimmt: 'phase.unbestimmt'
   };
 
   const W = 360;
@@ -32,10 +34,15 @@
 
   const variables = $derived.by((): VariableSpec[] => {
     if (!data) return [];
-    const scales = data.habits.filter((h) => h.type === 'scale4').map(habitVariable);
-    const bools = data.habits.filter((h) => h.type === 'bool').map(habitVariable);
+    const lang = getLang();
+    const scales = data.habits
+      .filter((h) => h.type === 'scale4')
+      .map((h) => localizedHabitVariable(h, lang));
+    const bools = data.habits
+      .filter((h) => h.type === 'bool')
+      .map((h) => localizedHabitVariable(h, lang));
     const temp = cycleVariables().find((v) => v.id === 'temperatur');
-    return [...scales, ...bools, ...(temp ? [temp] : [])];
+    return [...scales, ...bools, ...(temp ? [localizeVariableSpec(temp, lang)] : [])];
   });
 
   const variable = $derived(variables.find((v) => v.id === selectedId) ?? variables[0]);
@@ -48,6 +55,8 @@
   const fmt = $derived((v: number): string =>
     isProportion ? `${Math.round(v * 100)} %` : v.toFixed(1)
   );
+
+  const yLabel = $derived(isProportion ? t('phase.yProportion') : t('phase.yMean'));
 
   const rows = $derived.by(() => {
     if (!data || !variable) return [];
@@ -90,10 +99,10 @@
   const cycleCount = $derived(data?.index.cycles.length ?? 0);
 </script>
 
-<h2>Phasen-Profile</h2>
+<h2>{t('phase.heading')}</h2>
 
 {#if !data}
-  <p class="muted">Laden…</p>
+  <p class="muted">{t('common.loading')}</p>
 {:else}
   <div class="chips">
     {#each variables as v (v.id)}
@@ -104,21 +113,15 @@
   </div>
 
   {#if cycleCount === 0}
-    <p class="muted">
-      Noch keine Zyklen erkannt — Phasen-Profile erscheinen, sobald eine Periode eingetragen ist.
-    </p>
+    <p class="muted">{t('phase.noCyclesYet')}</p>
   {:else}
     {#if noPhaseData}
-      <p class="muted phase-empty">
-        Noch keine Phasen-Mittelwerte. Menstruation, Follikel- und Lutealphase lassen sich erst
-        trennen, wenn in einem Zyklus ein Temperaturanstieg erkannt wurde — dafür die Basaltemperatur
-        täglich morgens eintragen. Der Verlauf über den Zyklustag unten funktioniert schon jetzt.
-      </p>
+      <p class="muted phase-empty">{t('phase.noMeans')}</p>
     {:else}
       <div class="bars">
         {#each rows as row (row.phase)}
           <div class="bar-row">
-            <span class="phase">{PHASE_LABELS[row.phase]}</span>
+            <span class="phase">{t(PHASE_LABEL_KEYS[row.phase])}</span>
             {#if row.n > 0 && row.mean !== undefined}
               <div class="track">
                 <div
@@ -132,27 +135,27 @@
               </div>
               <span class="value">{fmt(row.mean)} · n={row.n}</span>
             {:else}
-              <span class="muted nodata">keine Daten</span>
+              <span class="muted nodata">{t('phase.noData')}</span>
             {/if}
           </div>
         {/each}
       </div>
     {/if}
 
-    <h3>Verlauf über den Zyklus</h3>
+    <h3>{t('phase.trendHeading')}</h3>
     {#if chart}
       <svg
         viewBox="0 0 {W} {H}"
         role="img"
-        aria-label="{isProportion ? 'Anteil Ja-Tage' : 'Mittelwert'} von {variable?.label} je Zyklustag"
+        aria-label={t('phase.ariaChart', { y: yLabel, label: variable?.label ?? '' })}
       >
-        {#each chart.yTicks as t, k (k)}
-          <line x1={PAD.left} y1={t.y} x2={W - PAD.right} y2={t.y} class="grid" />
-          <text x={PAD.left - 4} y={t.y + 3} class="tick" text-anchor="end">{fmt(t.v)}</text>
+        {#each chart.yTicks as tick, k (k)}
+          <line x1={PAD.left} y1={tick.y} x2={W - PAD.right} y2={tick.y} class="grid" />
+          <text x={PAD.left - 4} y={tick.y + 3} class="tick" text-anchor="end">{fmt(tick.v)}</text>
         {/each}
-        {#each chart.xTicks as t (t.d)}
-          <line x1={t.x} y1={PAD.top} x2={t.x} y2={H - PAD.bottom} class="grid" />
-          <text x={t.x} y={H - 6} class="tick" text-anchor="middle">{t.d}</text>
+        {#each chart.xTicks as tick (tick.d)}
+          <line x1={tick.x} y1={PAD.top} x2={tick.x} y2={H - PAD.bottom} class="grid" />
+          <text x={tick.x} y={H - 6} class="tick" text-anchor="middle">{tick.d}</text>
         {/each}
         {#if chart.path}
           <path d={chart.path} class="line" />
@@ -161,18 +164,12 @@
           <circle cx={p.x} cy={p.y} r="2.5" class="pt" class:faint={p.n < 2} />
         {/each}
       </svg>
-      <p class="muted axis-note">
-        x: Zyklustag, y: {isProportion ? 'Anteil Ja-Tage' : 'Mittelwert'}. Blasse Punkte: nur 1 Wert.
-      </p>
+      <p class="muted axis-note">{t('phase.axisNote', { y: yLabel })}</p>
     {:else}
-      <p class="muted">Noch keine Daten für den Zyklusverlauf.</p>
+      <p class="muted">{t('phase.noCurve')}</p>
     {/if}
 
-    <p class="muted note">
-      Basiert auf {cycleCount}
-      {cycleCount === 1 ? 'erkannten Zyklus' : 'erkannten Zyklen'}; Phasen erst zuordenbar, wenn ein
-      Temperaturanstieg erkannt wurde.
-    </p>
+    <p class="muted note">{t('phase.note', { n: cycleCount })}</p>
   {/if}
 {/if}
 

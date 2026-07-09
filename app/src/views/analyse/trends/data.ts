@@ -1,8 +1,15 @@
-import type { DayEntry, HabitDefinition } from '../../../lib/types';
-import { BLEEDING_LABELS, BLEEDING_ORDER, MUCUS_LABELS, MUCUS_ORDER } from '../../../lib/types';
-import { addDays, formatDE, toISODate, todayISO } from '../../../lib/date';
+import type { Bleeding, DayEntry, HabitDefinition } from '../../../lib/types';
+import { BLEEDING_ORDER, MUCUS_LABELS, MUCUS_ORDER } from '../../../lib/types';
+import { addDays, toISODate, todayISO } from '../../../lib/date';
 import type { CycleIndex } from '../../../lib/cycles';
 import { cycleVariables, habitVariable, type VariableSpec } from '../../../lib/stats';
+import { t, getLang, locale } from '../../../lib/i18n/i18n.svelte';
+import type { MessageKey } from '../../../lib/i18n/messages';
+import { localizedHabitName, localizedScaleLabels } from '../../../lib/i18n/habits';
+import { localizeVariableSpec } from '../../../lib/i18n/variables';
+import { formatDateLong } from '../../../lib/i18n/format';
+
+const bleedingKey = (b: Bleeding): MessageKey => `bleeding.${b}` as MessageKey;
 
 export const SERIES_COLOR = '#2a78d6';
 export const GRID_COLOR = '#e1e0d9';
@@ -13,10 +20,10 @@ export const BAND_FILLS = {
 
 export type RangeKey = '4w' | '3m' | 'all';
 
-export const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
-  { key: '4w', label: '4 Wochen' },
-  { key: '3m', label: '3 Monate' },
-  { key: 'all', label: 'Alles' }
+export const RANGE_OPTIONS: { key: RangeKey; labelKey: MessageKey }[] = [
+  { key: '4w', labelKey: 'analyse.range4w' },
+  { key: '3m', labelKey: 'analyse.range3m' },
+  { key: 'all', labelKey: 'analyse.rangeAll' }
 ];
 
 export interface TrendVariable {
@@ -29,9 +36,10 @@ export interface TrendVariable {
 }
 
 export function trendVariables(habits: HabitDefinition[]): TrendVariable[] {
+  const lang = getLang();
   const habitVars: TrendVariable[] = habits.map((h) => ({
     id: h.id,
-    label: h.name,
+    label: localizedHabitName(h, lang),
     group: 'habit',
     kind: h.type === 'bool' ? 'bool' : 'numeric',
     spec: habitVariable(h),
@@ -39,7 +47,13 @@ export function trendVariables(habits: HabitDefinition[]): TrendVariable[] {
   }));
   const cycleVars: TrendVariable[] = cycleVariables()
     .filter((v) => v.id !== 'zyklustag' && v.id !== 'lutealphase')
-    .map((v) => ({ id: v.id, label: v.label, group: 'zyklus', kind: 'numeric', spec: v }));
+    .map((v) => ({
+      id: v.id,
+      label: localizeVariableSpec(v, lang).label,
+      group: 'zyklus',
+      kind: 'numeric',
+      spec: v
+    }));
   return [...habitVars, ...cycleVars];
 }
 
@@ -175,11 +189,11 @@ function tickAxisSize(labels: string[]): number {
 function weekLabel(ts: number): string {
   const iso = addDays(tsToISO(ts), -3);
   const [y, m, d] = iso.split('-').map(Number);
-  const start = new Date(y!, m! - 1, d!).toLocaleDateString('de-DE', {
+  const start = new Date(y!, m! - 1, d!).toLocaleDateString(locale(), {
     day: 'numeric',
     month: 'long'
   });
-  return `Woche ab ${start}`;
+  return t('trends.weekOf', { start });
 }
 
 export function buildChartConfig(
@@ -199,13 +213,13 @@ export function buildChartConfig(
       hasData: ys.some((y) => y !== null),
       axis: {
         size: 30,
-        label: 'Ja-Tage pro Woche',
+        label: t('trends.yesDaysPerWeek'),
         splits: [0, 1, 2, 3, 4, 5, 6, 7],
         tickValues: ['0', '1', '2', '3', '4', '5', '6', '7'],
         range: [0, 7.4]
       },
       formatX: weekLabel,
-      formatValue: (v) => (v === 1 ? '1 Ja-Tag' : `${v} Ja-Tage`)
+      formatValue: (v) => t('trends.yesDay', { v })
     };
   }
 
@@ -216,20 +230,20 @@ export function buildChartConfig(
     ys,
     xPadSeconds: HALF_DAY,
     hasData: ys.some((y) => y !== null),
-    formatX: (ts: number) => formatDE(tsToISO(ts))
+    formatX: (ts: number) => formatDateLong(tsToISO(ts))
   };
 
   if (variable.id === 'temperatur') {
     return {
       ...base,
       axis: { size: 48, label: '°C', tickFormat: (v) => v.toFixed(2) },
-      formatValue: (v) => `${v.toFixed(2).replace('.', ',')} °C`
+      formatValue: (v) => `${getLang() === 'en' ? v.toFixed(2) : v.toFixed(2).replace('.', ',')} °C`
     };
   }
 
   if (variable.id === 'blutung') {
-    const words = BLEEDING_ORDER.map((b) => BLEEDING_LABELS[b]);
-    const ticks = ['Schmierbl.', 'leicht', 'mittel', 'stark'];
+    const words = BLEEDING_ORDER.map((b) => t(bleedingKey(b)));
+    const ticks = [t('trends.bleedSpotShort'), t('bleeding.light'), t('bleeding.medium'), t('bleeding.heavy')];
     return {
       ...base,
       axis: { size: tickAxisSize(ticks), splits: [1, 2, 3, 4], tickValues: ticks, range: [0.7, 4.3] },
@@ -247,7 +261,8 @@ export function buildChartConfig(
   }
 
   if (variable.habit?.type === 'scale4') {
-    const labels = variable.habit.scaleLabels ?? ['1', '2', '3', '4'];
+    const labels = localizedScaleLabels(variable.habit, getLang()) ??
+      variable.habit.scaleLabels ?? ['1', '2', '3', '4'];
     return {
       ...base,
       axis: { size: tickAxisSize(labels), splits: [1, 2, 3, 4], tickValues: [...labels], range: [0.7, 4.3] },
@@ -257,7 +272,7 @@ export function buildChartConfig(
 
   return {
     ...base,
-    axis: { size: 30, label: 'Anzahl pro Tag', incrs: [1, 2, 5, 10], range: [0, Math.max(2, ...ys.map((y) => y ?? 0)) + 0.5] },
-    formatValue: (v) => `Anzahl: ${v}`
+    axis: { size: 30, label: t('trends.countPerDay'), incrs: [1, 2, 5, 10], range: [0, Math.max(2, ...ys.map((y) => y ?? 0)) + 0.5] },
+    formatValue: (v) => t('trends.count', { v })
   };
 }
