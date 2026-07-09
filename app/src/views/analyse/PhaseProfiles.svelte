@@ -33,11 +33,21 @@
   const variables = $derived.by((): VariableSpec[] => {
     if (!data) return [];
     const scales = data.habits.filter((h) => h.type === 'scale4').map(habitVariable);
+    const bools = data.habits.filter((h) => h.type === 'bool').map(habitVariable);
     const temp = cycleVariables().find((v) => v.id === 'temperatur');
-    return temp ? [...scales, temp] : scales;
+    return [...scales, ...bools, ...(temp ? [temp] : [])];
   });
 
   const variable = $derived(variables.find((v) => v.id === selectedId) ?? variables[0]);
+
+  // ja/nein-Habits: Mittelwert von 0/1 = Anteil Ja-Tage → als Prozent darstellen.
+  const isProportion = $derived(
+    !!variable && data?.habits.find((h) => h.id === variable.id)?.type === 'bool'
+  );
+
+  const fmt = $derived((v: number): string =>
+    isProportion ? `${Math.round(v * 100)} %` : v.toFixed(1)
+  );
 
   const rows = $derived.by(() => {
     if (!data || !variable) return [];
@@ -57,7 +67,10 @@
     const means = curve.map((p) => p.mean);
     let lo = Math.min(...means);
     let hi = Math.max(...means);
-    if (hi - lo < 0.4) {
+    if (isProportion) {
+      lo = 0;
+      hi = 1;
+    } else if (hi - lo < 0.4) {
       const mid = (hi + lo) / 2;
       lo = mid - 0.2;
       hi = mid + 0.2;
@@ -108,9 +121,16 @@
             <span class="phase">{PHASE_LABELS[row.phase]}</span>
             {#if row.n > 0 && row.mean !== undefined}
               <div class="track">
-                <div class="bar" style="width: {maxMean > 0 ? (row.mean / maxMean) * 100 : 0}%"></div>
+                <div
+                  class="bar"
+                  style="width: {isProportion
+                    ? row.mean * 100
+                    : maxMean > 0
+                      ? (row.mean / maxMean) * 100
+                      : 0}%"
+                ></div>
               </div>
-              <span class="value">{row.mean.toFixed(1)} · n={row.n}</span>
+              <span class="value">{fmt(row.mean)} · n={row.n}</span>
             {:else}
               <span class="muted nodata">keine Daten</span>
             {/if}
@@ -121,10 +141,14 @@
 
     <h3>Verlauf über den Zyklus</h3>
     {#if chart}
-      <svg viewBox="0 0 {W} {H}" role="img" aria-label="Mittelwert von {variable?.label} je Zyklustag">
+      <svg
+        viewBox="0 0 {W} {H}"
+        role="img"
+        aria-label="{isProportion ? 'Anteil Ja-Tage' : 'Mittelwert'} von {variable?.label} je Zyklustag"
+      >
         {#each chart.yTicks as t, k (k)}
           <line x1={PAD.left} y1={t.y} x2={W - PAD.right} y2={t.y} class="grid" />
-          <text x={PAD.left - 4} y={t.y + 3} class="tick" text-anchor="end">{t.v.toFixed(1)}</text>
+          <text x={PAD.left - 4} y={t.y + 3} class="tick" text-anchor="end">{fmt(t.v)}</text>
         {/each}
         {#each chart.xTicks as t (t.d)}
           <line x1={t.x} y1={PAD.top} x2={t.x} y2={H - PAD.bottom} class="grid" />
@@ -137,7 +161,9 @@
           <circle cx={p.x} cy={p.y} r="2.5" class="pt" class:faint={p.n < 2} />
         {/each}
       </svg>
-      <p class="muted axis-note">x: Zyklustag, y: Mittelwert. Blasse Punkte: nur 1 Wert.</p>
+      <p class="muted axis-note">
+        x: Zyklustag, y: {isProportion ? 'Anteil Ja-Tage' : 'Mittelwert'}. Blasse Punkte: nur 1 Wert.
+      </p>
     {:else}
       <p class="muted">Noch keine Daten für den Zyklusverlauf.</p>
     {/if}

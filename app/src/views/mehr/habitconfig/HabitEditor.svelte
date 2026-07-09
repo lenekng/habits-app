@@ -13,6 +13,7 @@
   let scaleLabels = $state<string[]>(initial.scaleLabels ? [...initial.scaleLabels] : ['1', '2', '3', '4']);
   let choices = $state<string[]>(initial.choices && initial.choices.length > 0 ? [...initial.choices] : ['']);
   let error = $state('');
+  let confirming = $state(false);
 
   async function save() {
     const trimmedName = name.trim();
@@ -46,6 +47,27 @@
     await db.habit_definitions.put({ ...habit, archivedAt: todayISO() });
     onsaved();
   }
+
+  async function remove() {
+    try {
+      await db.transaction('rw', db.habit_definitions, db.day_entries, async () => {
+        await db.habit_definitions.delete(habit.id);
+        await db.day_entries.toCollection().modify((e, ref) => {
+          if (!e.habits || !(habit.id in e.habits)) return;
+          delete e.habits[habit.id];
+          // Invariante aus db.ts wahren: leer gewordene Tage nicht als
+          // Phantom-Eintrag zurücklassen, sondern löschen.
+          if (Object.keys(e.habits).length === 0 && !e.cycle) {
+            delete (ref as { value?: unknown }).value;
+          }
+        });
+      });
+      onsaved();
+    } catch {
+      confirming = false;
+      error = 'Löschen fehlgeschlagen — bitte erneut versuchen.';
+    }
+  }
 </script>
 
 <div class="editor">
@@ -78,6 +100,18 @@
   <p class="muted hint">
     Archivierte Habits verschwinden aus Heute/Monat, ihre Daten bleiben für Analysen erhalten.
   </p>
+
+  {#if confirming}
+    <div class="danger-confirm">
+      <p>Endgültig löschen? Alle erfassten Werte dieses Habits gehen verloren.</p>
+      <div class="actions">
+        <button onclick={() => (confirming = false)}>Abbrechen</button>
+        <button class="danger" onclick={remove}>Endgültig löschen</button>
+      </div>
+    </div>
+  {:else}
+    <button class="danger-link" onclick={() => (confirming = true)}>Löschen</button>
+  {/if}
 </div>
 
 <style>
@@ -129,5 +163,34 @@
   .hint {
     margin: 0;
     font-size: 0.85rem;
+  }
+
+  .danger-link {
+    align-self: flex-start;
+    border: none;
+    background: none;
+    color: var(--period);
+    padding: 0.25rem 0;
+    min-height: 2.75rem;
+  }
+
+  .danger-confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border: 1px solid var(--period);
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .danger-confirm p {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+
+  .danger {
+    background: var(--period);
+    border-color: var(--period);
+    color: #fff;
   }
 </style>
