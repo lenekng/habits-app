@@ -2,13 +2,16 @@
   import { flip } from 'svelte/animate';
   import type { HabitDefinition, HabitType } from '../../lib/types';
   import { allHabits, db } from '../../lib/db';
+  import { t, getLang } from '../../lib/i18n/i18n.svelte';
+  import type { MessageKey } from '../../lib/i18n/messages';
+  import { localizedHabitName } from '../../lib/i18n/habits';
   import HabitEditor from './habitconfig/HabitEditor.svelte';
   import NewHabitForm from './habitconfig/NewHabitForm.svelte';
 
-  const TYPE_BADGES: Record<HabitType, string> = {
-    bool: 'Ja/Nein',
-    scale4: 'Skala 1–4',
-    choice: 'Auswahl'
+  const TYPE_BADGES: Record<HabitType, MessageKey> = {
+    bool: 'badge.bool',
+    scale4: 'badge.scale4',
+    choice: 'badge.choice'
   };
 
   let habits = $state<HabitDefinition[]>([]);
@@ -137,7 +140,7 @@
   }
 </script>
 
-<h1>Habits verwalten</h1>
+<h1>{t('habitcfg.heading')}</h1>
 
 <ul class="habit-list" bind:this={listEl}>
   {#each renderList as habit (habit.id)}
@@ -145,7 +148,7 @@
       <div class="habit-row">
         <button
           class="drag-handle"
-          aria-label="Verschieben"
+          aria-label={t('habitcfg.moveAria')}
           onpointerdown={(e) => onHandleDown(e, habit.id)}
           onpointermove={onHandleMove}
           onpointerup={onHandleUp}
@@ -158,8 +161,8 @@
           onclick={() => toggleEdit(habit.id)}
           aria-expanded={editingId === habit.id}
         >
-          <span class="habit-name">{habit.name}</span>
-          <span class="badge">{TYPE_BADGES[habit.type]}</span>
+          <span class="habit-name">{localizedHabitName(habit, getLang())}</span>
+          <span class="badge">{t(TYPE_BADGES[habit.type])}</span>
         </button>
       </div>
       {#if editingId === habit.id}
@@ -170,7 +173,7 @@
 </ul>
 
 {#if showNewForm}
-  <h2>Neues Habit</h2>
+  <h2>{t('habitcfg.newHabitTitle')}</h2>
   <NewHabitForm
     {existingIds}
     {nextSortOrder}
@@ -178,26 +181,24 @@
     oncancel={() => (showNewForm = false)}
   />
 {:else}
-  <button class="add" onclick={() => (showNewForm = true)}>Neues Habit anlegen</button>
+  <button class="add" onclick={() => (showNewForm = true)}>{t('habitcfg.newHabit')}</button>
 {/if}
 
 {#if archived.length > 0}
   <section class="archived">
     <button class="archived-toggle" onclick={() => (showArchived = !showArchived)}>
-      <span>Archivierte Habits ({archived.length})</span>
+      <span>{t('habitcfg.archivedToggle', { n: archived.length })}</span>
       <span class="chevron">{showArchived ? '▾' : '▸'}</span>
     </button>
     {#if showArchived}
-      <p class="muted hint">
-        Archivierte Habits verschwinden aus Heute/Monat, ihre Daten bleiben für Analysen erhalten.
-      </p>
+      <p class="muted hint">{t('habitcfg.archivedHint')}</p>
       <ul class="habit-list">
         {#each archived as habit (habit.id)}
           <li class="habit-item">
             <div class="habit-row archived-row">
-              <span class="habit-name">{habit.name}</span>
-              <span class="badge">{TYPE_BADGES[habit.type]}</span>
-              <button class="reactivate" onclick={() => reactivate(habit)}>Reaktivieren</button>
+              <span class="habit-name">{localizedHabitName(habit, getLang())}</span>
+              <span class="badge">{t(TYPE_BADGES[habit.type])}</span>
+              <button class="reactivate" onclick={() => reactivate(habit)}>{t('habitcfg.reactivate')}</button>
             </div>
           </li>
         {/each}

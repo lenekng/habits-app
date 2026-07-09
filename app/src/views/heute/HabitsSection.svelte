@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { HabitDefinition, HabitValue } from '../../lib/types';
+  import { t, getLang } from '../../lib/i18n/i18n.svelte';
+  import { localizedHabitName, localizedScaleLabels, localizedChoices } from '../../lib/i18n/habits';
 
   let {
     habits,
@@ -31,30 +33,30 @@
   }
 </script>
 
-<h2>Habits</h2>
+<h2>{t('habits.heading')}</h2>
 <div class="habits">
   {#each habits as habit (habit.id)}
     <div class="habit-row">
-      <span class="habit-name">{habit.name}</span>
+      <span class="habit-name">{localizedHabitName(habit, getLang())}</span>
       {#if habit.type === 'bool'}
         <div class="segmented">
-          <button class:selected={values[habit.id] === true} onclick={() => toggleBool(habit.id, true)}>Ja</button>
-          <button class:selected={values[habit.id] === false} onclick={() => toggleBool(habit.id, false)}>Nein</button>
+          <button class:selected={values[habit.id] === true} onclick={() => toggleBool(habit.id, true)}>{t('common.yes')}</button>
+          <button class:selected={values[habit.id] === false} onclick={() => toggleBool(habit.id, false)}>{t('common.no')}</button>
         </div>
       {:else if habit.type === 'scale4'}
         <div class="scale4">
           {#each [0, 1, 2, 3] as idx (idx)}
             <button class:selected={values[habit.id] === idx + 1} onclick={() => toggleScale(habit.id, idx + 1)}>
               <span class="num">{idx + 1}</span>
-              <span class="lbl">{habit.scaleLabels?.[idx] ?? ''}</span>
+              <span class="lbl">{localizedScaleLabels(habit, getLang())?.[idx] ?? ''}</span>
             </button>
           {/each}
         </div>
       {:else if habit.type === 'choice'}
         <div class="chips">
-          {#each habit.choices ?? [] as choice (choice)}
+          {#each habit.choices ?? [] as choice, i (choice)}
             <button class:selected={isChoiceSelected(habit.id, choice)} onclick={() => toggleChoice(habit.id, choice)}>
-              {choice}
+              {localizedChoices(habit, getLang())?.[i] ?? choice}
             </button>
           {/each}
         </div>

@@ -2,6 +2,7 @@
   import type { HabitDefinition } from '../../../lib/types';
   import { db } from '../../../lib/db';
   import { todayISO } from '../../../lib/date';
+  import { t } from '../../../lib/i18n/i18n.svelte';
   import ChoicesEditor from './ChoicesEditor.svelte';
   import ScaleLabelsEditor from './ScaleLabelsEditor.svelte';
 
@@ -18,14 +19,14 @@
   async function save() {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      error = 'Name darf nicht leer sein.';
+      error = t('habiteditor.errNameEmpty');
       return;
     }
     const updated: HabitDefinition = { ...habit, name: trimmedName };
     if (habit.type === 'scale4') {
       const labels = scaleLabels.map((l) => l.trim());
       if (labels.some((l) => !l)) {
-        error = 'Alle vier Skalen-Labels ausfüllen.';
+        error = t('habiteditor.errScaleLabels');
         return;
       }
       updated.scaleLabels = [labels[0]!, labels[1]!, labels[2]!, labels[3]!];
@@ -33,7 +34,7 @@
     if (habit.type === 'choice') {
       const cleaned = choices.map((c) => c.trim()).filter((c) => c.length > 0);
       if (cleaned.length === 0) {
-        error = 'Mindestens eine Option angeben.';
+        error = t('habiteditor.errOptions');
         return;
       }
       updated.choices = cleaned;
@@ -65,27 +66,27 @@
       onsaved();
     } catch {
       confirming = false;
-      error = 'Löschen fehlgeschlagen — bitte erneut versuchen.';
+      error = t('habiteditor.deleteFailed');
     }
   }
 </script>
 
 <div class="editor">
   <label class="field">
-    <span class="field-label">Name</span>
+    <span class="field-label">{t('habiteditor.name')}</span>
     <input type="text" bind:value={name} />
   </label>
 
   {#if habit.type === 'scale4'}
     <div class="group">
-      <span class="field-label">Skalen-Labels</span>
+      <span class="field-label">{t('habiteditor.scaleLabels')}</span>
       <ScaleLabelsEditor bind:labels={scaleLabels} />
     </div>
   {:else if habit.type === 'choice'}
     <div class="group">
-      <span class="field-label">Optionen</span>
+      <span class="field-label">{t('habiteditor.options')}</span>
       <ChoicesEditor bind:choices />
-      <p class="muted hint">Alte Tageseinträge behalten entfernte Optionen.</p>
+      <p class="muted hint">{t('habiteditor.optionsHint')}</p>
     </div>
   {/if}
 
@@ -94,23 +95,21 @@
   {/if}
 
   <div class="actions">
-    <button class="primary" onclick={save}>Speichern</button>
-    <button onclick={archive}>Archivieren</button>
+    <button class="primary" onclick={save}>{t('habiteditor.save')}</button>
+    <button onclick={archive}>{t('habiteditor.archive')}</button>
   </div>
-  <p class="muted hint">
-    Archivierte Habits verschwinden aus Heute/Monat, ihre Daten bleiben für Analysen erhalten.
-  </p>
+  <p class="muted hint">{t('habiteditor.archiveHint')}</p>
 
   {#if confirming}
     <div class="danger-confirm">
-      <p>Endgültig löschen? Alle erfassten Werte dieses Habits gehen verloren.</p>
+      <p>{t('habiteditor.deleteConfirm')}</p>
       <div class="actions">
-        <button onclick={() => (confirming = false)}>Abbrechen</button>
-        <button class="danger" onclick={remove}>Endgültig löschen</button>
+        <button onclick={() => (confirming = false)}>{t('common.cancel')}</button>
+        <button class="danger" onclick={remove}>{t('habiteditor.deleteConfirmBtn')}</button>
       </div>
     </div>
   {:else}
-    <button class="danger-link" onclick={() => (confirming = true)}>Löschen</button>
+    <button class="danger-link" onclick={() => (confirming = true)}>{t('habiteditor.delete')}</button>
   {/if}
 </div>
 

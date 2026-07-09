@@ -1,15 +1,17 @@
 <script lang="ts">
-  import { formatDE } from '../../lib/date';
+  import { t } from '../../lib/i18n/i18n.svelte';
+  import type { MessageKey } from '../../lib/i18n/messages';
+  import { formatDateLong } from '../../lib/i18n/format';
   import { PATCH_FIELDS, type PatchField } from '../../lib/health/mapping';
   import { mergePatchesIntoDb, type MergeResult } from '../../lib/health/merge';
   import { parseHealthExport, type ParseProgress, type ParseResult } from '../../lib/health/stream';
 
-  const FIELD_LABELS: Record<PatchField, string> = {
-    bleeding: 'Blutung',
-    temperature: 'Basaltemperatur',
-    mucus: 'Zervixschleim',
-    spotting: 'Zwischenblutung',
-    breastTenderness: 'Brustspannen'
+  const FIELD_LABELS: Record<PatchField, MessageKey> = {
+    bleeding: 'health.fieldBleeding',
+    temperature: 'health.fieldTemp',
+    mucus: 'health.fieldMucus',
+    spotting: 'health.fieldSpotting',
+    breastTenderness: 'health.fieldBreast'
   };
 
   type Phase = 'idle' | 'parsing' | 'saving' | 'done' | 'error';
@@ -67,27 +69,18 @@
   }
 </script>
 
-<h1>Apple-Health-Import</h1>
+<h1>{t('health.title')}</h1>
 
-<p>
-  So kommst du an den Export: In der Health-App auf dem iPhone oben rechts auf das
-  Profilbild tippen und „Alle Gesundheitsdaten exportieren&#8220; wählen. Die erzeugte
-  Export.zip hier auswählen (z. B. über die Dateien-App); eine bereits entpackte
-  Export.xml funktioniert ebenfalls.
-</p>
-<p class="muted">
-  Importiert werden Blutung, Basaltemperatur, Zervixschleim, Zwischenblutung und Brustspannen.
-  Perioden-Einträge ohne Stärkeangabe werden als „leicht" übernommen. Manuell eingetragene
-  Werte werden nie überschrieben; ein erneuter Import derselben Datei ändert nichts.
-</p>
+<p>{t('health.intro')}</p>
+<p class="muted">{t('health.introFields')}</p>
 
 <label class="file-button" class:disabled={busy}>
   {#if busy}
-    Import läuft &hellip;
+    {t('health.importing')}
   {:else if phase === 'idle'}
-    Export.zip oder Export.xml auswählen
+    {t('health.pickFile')}
   {:else}
-    Weitere Datei importieren
+    {t('health.pickAnother')}
   {/if}
   <input
     type="file"
@@ -103,42 +96,42 @@
       <div class="fill" style:width="{percent}%"></div>
     </div>
     {#if phase === 'parsing'}
-      <p class="muted">{percent} % gelesen &middot; {runningTotal} Zyklus-Records gefunden</p>
+      <p class="muted">{t('health.progressRead', { percent, total: runningTotal })}</p>
     {:else}
-      <p class="muted">Speichere in die Datenbank &hellip;</p>
+      <p class="muted">{t('health.saving')}</p>
     {/if}
   </div>
 {/if}
 
 {#if phase === 'done' && parseResult !== null && mergeResult !== null}
-  <h2>Import abgeschlossen</h2>
+  <h2>{t('health.doneTitle')}</h2>
   {#if foundTotal === 0}
-    <p>In der Datei wurden keine relevanten Zyklusdaten gefunden.</p>
+    <p>{t('health.noData')}</p>
   {:else}
     {#if parseResult.dateRange !== null}
-      <p>
-        Zeitraum der Daten: {formatDE(parseResult.dateRange.from)} bis
-        {formatDE(parseResult.dateRange.to)}
-      </p>
+      <p>{t('health.range', { from: formatDateLong(parseResult.dateRange.from), to: formatDateLong(parseResult.dateRange.to) })}</p>
     {/if}
     <p>
-      {mergeResult.daysCreated} neue Tage angelegt, {mergeResult.daysUpdated} bestehende Tage
-      ergänzt, {mergeResult.daysUnchanged} Tage unverändert.
+      {t('health.summary', {
+        created: mergeResult.daysCreated,
+        updated: mergeResult.daysUpdated,
+        unchanged: mergeResult.daysUnchanged
+      })}
     </p>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Typ</th>
-            <th>Records</th>
-            <th>Tage importiert</th>
-            <th>Tage übersprungen</th>
+            <th>{t('health.thType')}</th>
+            <th>{t('health.thRecords')}</th>
+            <th>{t('health.thImported')}</th>
+            <th>{t('health.thSkipped')}</th>
           </tr>
         </thead>
         <tbody>
           {#each PATCH_FIELDS as field (field)}
             <tr>
-              <td>{FIELD_LABELS[field]}</td>
+              <td>{t(FIELD_LABELS[field])}</td>
               <td>{parseResult.recordCounts[field]}</td>
               <td>{mergeResult.imported[field]}</td>
               <td>{mergeResult.skipped[field]}</td>
@@ -147,20 +140,13 @@
         </tbody>
       </table>
     </div>
-    <p class="muted">
-      Übersprungen heißt: An diesem Tag war das Feld bereits ausgefüllt, manuelle Einträge
-      haben Vorrang.
-    </p>
+    <p class="muted">{t('health.skippedNote')}</p>
     {#if parseResult.recordCounts.mucus > 0}
-      <p class="muted">
-        Hinweis: Die Zervixschleim-Werte aus Apple Health wurden näherungsweise auf das
-        Sensiplan-Schema abgebildet (Dry &rarr; t, Sticky/Creamy &rarr; S, Watery/EggWhite
-        &rarr; S+). Einzelne Tage bei Bedarf manuell prüfen.
-      </p>
+      <p class="muted">{t('health.mucusNote')}</p>
     {/if}
   {/if}
   {#if parseResult.warnings.length > 0}
-    <h2>Warnungen</h2>
+    <h2>{t('health.warningsTitle')}</h2>
     <ul class="warnings">
       {#each parseResult.warnings as warning}
         <li>{warning}</li>
@@ -170,7 +156,7 @@
 {/if}
 
 {#if phase === 'error'}
-  <p class="error">Import fehlgeschlagen: {errorMessage}</p>
+  <p class="error">{t('health.failed', { msg: errorMessage })}</p>
 {/if}
 
 <style>

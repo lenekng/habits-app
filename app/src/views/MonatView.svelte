@@ -2,6 +2,9 @@
   import { db, activeHabits, putOrDeleteDayEntry } from '../lib/db';
   import { daysInMonth, todayISO } from '../lib/date';
   import { nav } from '../lib/nav.svelte';
+  import { t, getLang } from '../lib/i18n/i18n.svelte';
+  import { localizedHabitName, localizedChoices } from '../lib/i18n/habits';
+  import { formatMonthYear } from '../lib/i18n/format';
   import type { Bleeding, CycleObservation, DayEntry, HabitDefinition, HabitValue } from '../lib/types';
   import QuickEdit from './monat/QuickEdit.svelte';
 
@@ -19,9 +22,7 @@
   const pad = (n: number): string => String(n).padStart(2, '0');
 
   const nDays = $derived(daysInMonth(year, month));
-  const monthLabel = $derived(
-    new Date(year, month - 1, 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
-  );
+  const monthLabel = $derived(formatMonthYear(year, month));
   const days = $derived.by(() =>
     Array.from({ length: nDays }, (_, i) => {
       const iso = `${year}-${pad(month)}-${pad(i + 1)}`;
@@ -158,13 +159,13 @@
 
 <section class="view">
   <div class="month-nav">
-    <button class="nav-btn" onclick={() => shiftMonth(-1)} aria-label="Voriger Monat">&lsaquo;</button>
+    <button class="nav-btn" onclick={() => shiftMonth(-1)} aria-label={t('monat.prevMonth')}>&lsaquo;</button>
     <h1>{monthLabel}</h1>
-    <button class="nav-btn" onclick={() => shiftMonth(1)} aria-label="Nächster Monat">&rsaquo;</button>
+    <button class="nav-btn" onclick={() => shiftMonth(1)} aria-label={t('monat.nextMonth')}>&rsaquo;</button>
   </div>
 
   {#if loading}
-    <p class="muted">Laden…</p>
+    <p class="muted">{t('common.loading')}</p>
   {:else}
     <div class="grid-wrap" bind:this={gridWrap}>
       <div class="grid" style="grid-template-columns: 6.5rem repeat({nDays}, 1.7rem);">
@@ -176,19 +177,19 @@
             class:future={d.isFuture}
             class:gap={d.isGap}
             onclick={() => nav.go('heute', d.iso)}
-            aria-label="Tag {d.num} im Tagesformular öffnen"
+            aria-label={t('monat.openDay', { n: d.num })}
           >
             <span class="num">{d.num}</span>
           </button>
         {/each}
 
-        <div class="label-cell period-label">Periode</div>
+        <div class="label-cell period-label">{t('monat.period')}</div>
         {#each days as d (d.iso)}
           {@const pm = periodMarker(entries[d.iso])}
           <button
             class="cell"
             onclick={() => (edit = { habit: null, date: d.iso })}
-            aria-label="Periode am {d.num}. bearbeiten"
+            aria-label={t('monat.editPeriod', { n: d.num })}
           >
             {#if pm.main}
               <span class="pdot p-{pm.main}"></span>
@@ -200,13 +201,14 @@
         {/each}
 
         {#each habits as h (h.id)}
-          <div class="label-cell" title={h.name}>{h.name}</div>
+          {@const hName = localizedHabitName(h, getLang())}
+          <div class="label-cell" title={hName}>{hName}</div>
           {#each days as d (d.iso)}
             {@const m = habitMarker(h, entries[d.iso])}
             <button
               class="cell"
               onclick={() => (edit = { habit: h, date: d.iso })}
-              aria-label="{h.name} am {d.num}. bearbeiten"
+              aria-label={t('monat.editHabit', { name: hName, n: d.num })}
             >
               {#if m.kind === 'yes'}
                 <span class="dot"></span>
@@ -228,28 +230,28 @@
     </div>
 
     <div class="legend">
-      <span class="item"><span class="dot"></span> Ja</span>
-      <span class="item"><span class="no-mark"></span> Nein (erfasst)</span>
+      <span class="item"><span class="dot"></span> {t('legend.yes')}</span>
+      <span class="item"><span class="no-mark"></span> {t('legend.noRecorded')}</span>
       <span class="item">
         <span class="scale s1"></span><span class="scale s2"></span><span class="scale s3"
-        ></span><span class="scale s4"></span> Skala: 1 schlecht &#8594; 4 ideal
+        ></span><span class="scale s4"></span> {t('legend.scale')}
       </span>
       {#each choiceHabits as h (h.id)}
         <span class="item choice-legend">
-          {h.name}:
+          {localizedHabitName(h, getLang())}:
           {#each h.choices ?? [] as c, i (c)}
-            <span class="legend-choice"><span class="mini c{i % 8}"></span>{c}</span>
+            <span class="legend-choice"><span class="mini c{i % 8}"></span>{localizedChoices(h, getLang())?.[i] ?? c}</span>
           {/each}
         </span>
       {/each}
       <span class="item">
         <span class="pdot p-light"></span><span class="pdot p-medium"></span><span
           class="pdot p-heavy"
-        ></span> Periode leicht&#8211;stark
+        ></span> {t('legend.periodRange')}
       </span>
-      <span class="item"><span class="spot"></span> Schmier-/Zwischenblutung</span>
-      <span class="item"><span class="gap-demo">5</span> Tag ohne Eintrag</span>
-      <span class="item">Leere Zelle: kein Eintrag</span>
+      <span class="item"><span class="spot"></span> {t('legend.spotting')}</span>
+      <span class="item"><span class="gap-demo">5</span> {t('legend.gap')}</span>
+      <span class="item">{t('legend.empty')}</span>
     </div>
   {/if}
 
@@ -269,7 +271,7 @@
   {/if}
 
   {#if saveError}
-    <p class="save-error">Speichern fehlgeschlagen — Änderung ist nicht gesichert.</p>
+    <p class="save-error">{t('monat.saveFailed')}</p>
   {/if}
 </section>
 

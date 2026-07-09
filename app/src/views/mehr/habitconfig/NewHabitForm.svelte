@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { HabitDefinition, HabitType } from '../../../lib/types';
   import { db } from '../../../lib/db';
+  import { t } from '../../../lib/i18n/i18n.svelte';
+  import type { MessageKey } from '../../../lib/i18n/messages';
   import ChoicesEditor from './ChoicesEditor.svelte';
   import ScaleLabelsEditor from './ScaleLabelsEditor.svelte';
   import { slugify, uniqueHabitId } from './slug';
@@ -17,10 +19,10 @@
     oncancel: () => void;
   } = $props();
 
-  const typeOptions: { value: HabitType; label: string }[] = [
-    { value: 'bool', label: 'Ja/Nein' },
-    { value: 'scale4', label: 'Skala 1–4' },
-    { value: 'choice', label: 'Auswahl' }
+  const typeOptions: { value: HabitType; labelKey: MessageKey }[] = [
+    { value: 'bool', labelKey: 'badge.bool' },
+    { value: 'scale4', labelKey: 'badge.scale4' },
+    { value: 'choice', labelKey: 'badge.choice' }
   ];
 
   let name = $state('');
@@ -32,7 +34,7 @@
   async function create() {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      error = 'Name darf nicht leer sein.';
+      error = t('habiteditor.errNameEmpty');
       return;
     }
     const habit: HabitDefinition = {
@@ -44,7 +46,7 @@
     if (type === 'scale4') {
       const labels = scaleLabels.map((l) => l.trim());
       if (labels.some((l) => !l)) {
-        error = 'Alle vier Skalen-Labels ausfüllen.';
+        error = t('habiteditor.errScaleLabels');
         return;
       }
       habit.scaleLabels = [labels[0]!, labels[1]!, labels[2]!, labels[3]!];
@@ -52,7 +54,7 @@
     if (type === 'choice') {
       const cleaned = choices.map((c) => c.trim()).filter((c) => c.length > 0);
       if (cleaned.length === 0) {
-        error = 'Mindestens eine Option angeben.';
+        error = t('habiteditor.errOptions');
         return;
       }
       habit.choices = cleaned;
@@ -65,30 +67,30 @@
 
 <div class="form">
   <label class="field">
-    <span class="field-label">Name</span>
-    <input type="text" bind:value={name} placeholder="z. B. Meditation" />
+    <span class="field-label">{t('habiteditor.name')}</span>
+    <input type="text" bind:value={name} placeholder={t('newhabit.namePlaceholder')} />
   </label>
 
   <div class="group">
-    <span class="field-label">Typ</span>
-    <div class="type-select" role="group" aria-label="Typ wählen">
+    <span class="field-label">{t('newhabit.type')}</span>
+    <div class="type-select" role="group" aria-label={t('newhabit.typeAria')}>
       {#each typeOptions as opt (opt.value)}
         <button class:selected={type === opt.value} onclick={() => (type = opt.value)}>
-          {opt.label}
+          {t(opt.labelKey)}
         </button>
       {/each}
     </div>
-    <p class="muted hint">Typ ist nach dem Anlegen nicht änderbar.</p>
+    <p class="muted hint">{t('newhabit.typeHint')}</p>
   </div>
 
   {#if type === 'scale4'}
     <div class="group">
-      <span class="field-label">Skalen-Labels</span>
+      <span class="field-label">{t('habiteditor.scaleLabels')}</span>
       <ScaleLabelsEditor bind:labels={scaleLabels} />
     </div>
   {:else if type === 'choice'}
     <div class="group">
-      <span class="field-label">Optionen</span>
+      <span class="field-label">{t('habiteditor.options')}</span>
       <ChoicesEditor bind:choices />
     </div>
   {/if}
@@ -98,8 +100,8 @@
   {/if}
 
   <div class="actions">
-    <button class="primary" onclick={create}>Anlegen</button>
-    <button onclick={oncancel}>Abbrechen</button>
+    <button class="primary" onclick={create}>{t('newhabit.create')}</button>
+    <button onclick={oncancel}>{t('common.cancel')}</button>
   </div>
 </div>
 
