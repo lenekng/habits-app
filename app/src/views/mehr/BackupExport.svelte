@@ -1,6 +1,8 @@
 <script lang="ts">
   import { db, getSetting, setSetting, SCHEMA_VERSION } from '../../lib/db';
   import { todayISO } from '../../lib/date';
+  import { t } from '../../lib/i18n/i18n.svelte';
+  import { formatTimestamp, formatShortDate } from '../../lib/i18n/format';
   import {
     backupFilename,
     buildBackupPayload,
@@ -32,15 +34,6 @@
   let csvStatus = $state<Status | null>(null);
 
   void getSetting<string>('lastBackupAt').then((value) => (lastBackupAt = value ?? null));
-
-  function formatTimestamp(iso: string): string {
-    return new Date(iso).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
-  }
-
-  function formatShortDate(iso: string): string {
-    const [y, m, d] = iso.split('-').map(Number);
-    return new Date(y!, m! - 1, d!).toLocaleDateString('de-DE');
-  }
 
   function errorText(err: unknown): string {
     return err instanceof Error ? err.message : String(err);
@@ -102,12 +95,12 @@
       if (delivered) {
         await setSetting('lastBackupAt', now);
         lastBackupAt = now;
-        backupStatus = { ok: true, text: 'Backup exportiert.' };
+        backupStatus = { ok: true, text: t('backup.exported') };
       } else {
-        backupStatus = { ok: false, text: 'Export abgebrochen.' };
+        backupStatus = { ok: false, text: t('backup.exportAborted') };
       }
     } catch (err) {
-      backupStatus = { ok: false, text: `Export fehlgeschlagen: ${errorText(err)}` };
+      backupStatus = { ok: false, text: t('backup.exportFailed', { err: errorText(err) }) };
     } finally {
       backupBusy = false;
     }
@@ -121,10 +114,10 @@
       const csv = serializeCsv(buildCsvTable(entries, habits));
       const delivered = await deliverFile(csvFilename(todayISO()), csv, 'text/csv');
       csvStatus = delivered
-        ? { ok: true, text: `CSV exportiert (${entries.length} Tage).` }
-        : { ok: false, text: 'Export abgebrochen.' };
+        ? { ok: true, text: t('backup.csvExported', { n: entries.length }) }
+        : { ok: false, text: t('backup.exportAborted') };
     } catch (err) {
-      csvStatus = { ok: false, text: `Export fehlgeschlagen: ${errorText(err)}` };
+      csvStatus = { ok: false, text: t('backup.exportFailed', { err: errorText(err) }) };
     } finally {
       csvBusy = false;
     }
@@ -151,7 +144,7 @@
       restorePayload = result.payload;
       restoreSummary = summarizeBackup(result.payload);
     } catch {
-      restoreErrors = ['Datei konnte nicht als JSON gelesen werden.'];
+      restoreErrors = [t('backup.jsonReadError')];
     }
   }
 
@@ -176,39 +169,39 @@
       lastBackupAt = (await getSetting<string>('lastBackupAt')) ?? null;
       restoreStatus = {
         ok: true,
-        text: `Backup wiederhergestellt: ${payload.day_entries.length} Tageseinträge, ${payload.habit_definitions.length} Habits.`
+        text: t('backup.restored', {
+          entries: payload.day_entries.length,
+          habits: payload.habit_definitions.length
+        })
       };
       restorePayload = null;
       restoreSummary = null;
       confirmVisible = false;
     } catch (err) {
-      restoreStatus = { ok: false, text: `Wiederherstellung fehlgeschlagen: ${errorText(err)}` };
+      restoreStatus = { ok: false, text: t('backup.restoreFailed', { err: errorText(err) }) };
     } finally {
       restoreBusy = false;
     }
   }
 </script>
 
-<h1>Backup &amp; Export</h1>
+<h1>{t('backup.title')}</h1>
 
 <section class="block">
-  <h2>Backup erstellen</h2>
-  <p class="muted">
-    Vollständiges JSON-Backup aller Daten (Tageseinträge, Habits, Zyklen, Einstellungen). Auf dem iPhone über das
-    Share-Sheet in iCloud Drive oder „Dateien" sichern.
-  </p>
+  <h2>{t('backup.createTitle')}</h2>
+  <p class="muted">{t('backup.createHint')}</p>
   <p class="last-backup">
-    Letztes Backup: <strong>{lastBackupAt ? formatTimestamp(lastBackupAt) : 'noch nie'}</strong>
+    {t('backup.lastLabel')} <strong>{lastBackupAt ? formatTimestamp(lastBackupAt) : t('backup.never')}</strong>
   </p>
-  <button onclick={exportBackup} disabled={backupBusy}>Backup exportieren</button>
+  <button onclick={exportBackup} disabled={backupBusy}>{t('backup.exportBtn')}</button>
   {#if backupStatus}
     <p class={backupStatus.ok ? 'ok' : 'error'}>{backupStatus.text}</p>
   {/if}
 </section>
 
 <section class="block">
-  <h2>Backup wiederherstellen</h2>
-  <p class="muted">Stellt ein zuvor exportiertes JSON-Backup vollständig wieder her.</p>
+  <h2>{t('backup.restoreTitle')}</h2>
+  <p class="muted">{t('backup.restoreHint')}</p>
   <input type="file" accept="application/json,.json" onchange={onRestoreFileChange} />
   {#if restoreErrors.length > 0}
     <ul class="error">
@@ -219,25 +212,28 @@
   {/if}
   {#if restoreSummary}
     <ul class="summary">
-      <li>Exportiert am: {formatTimestamp(restoreSummary.exportedAt)}</li>
+      <li>{t('backup.summaryExportedAt', { ts: formatTimestamp(restoreSummary.exportedAt) })}</li>
       <li>
-        Tageseinträge: {restoreSummary.counts.day_entries}
+        {t('backup.summaryEntries')}: {restoreSummary.counts.day_entries}
         {#if restoreSummary.dateRange}
-          ({formatShortDate(restoreSummary.dateRange.from)} bis {formatShortDate(restoreSummary.dateRange.to)})
+          {t('backup.summaryRange', {
+            from: formatShortDate(restoreSummary.dateRange.from),
+            to: formatShortDate(restoreSummary.dateRange.to)
+          })}
         {/if}
       </li>
-      <li>Habits: {restoreSummary.counts.habit_definitions}</li>
-      <li>Zyklen: {restoreSummary.counts.cycles}</li>
-      <li>Einstellungen: {restoreSummary.counts.settings}</li>
+      <li>{t('backup.summaryHabits')}: {restoreSummary.counts.habit_definitions}</li>
+      <li>{t('backup.summaryCycles')}: {restoreSummary.counts.cycles}</li>
+      <li>{t('backup.summarySettings')}: {restoreSummary.counts.settings}</li>
     </ul>
     {#if !confirmVisible}
-      <button onclick={() => (confirmVisible = true)}>Wiederherstellen …</button>
+      <button onclick={() => (confirmVisible = true)}>{t('backup.restoreBtn')}</button>
     {:else}
       <div class="warning">
-        <p>Ersetzt ALLE vorhandenen Daten in der App. Das kann nicht rückgängig gemacht werden.</p>
+        <p>{t('backup.restoreWarn')}</p>
         <div class="confirm-row">
-          <button class="danger" onclick={performRestore} disabled={restoreBusy}>Ja, alle Daten ersetzen</button>
-          <button onclick={() => (confirmVisible = false)} disabled={restoreBusy}>Abbrechen</button>
+          <button class="danger" onclick={performRestore} disabled={restoreBusy}>{t('backup.restoreConfirm')}</button>
+          <button onclick={() => (confirmVisible = false)} disabled={restoreBusy}>{t('common.cancel')}</button>
         </div>
       </div>
     {/if}
@@ -248,12 +244,9 @@
 </section>
 
 <section class="block">
-  <h2>CSV-Export</h2>
-  <p class="muted">
-    Für Auswertungen in Jupyter/Pandas: eine Zeile pro Tag, eine Spalte pro Habit plus Zyklusdaten. Enthält keine
-    Einstellungen und ersetzt kein Backup.
-  </p>
-  <button onclick={exportCsv} disabled={csvBusy}>CSV exportieren</button>
+  <h2>{t('backup.csvTitle')}</h2>
+  <p class="muted">{t('backup.csvHint')}</p>
+  <button onclick={exportCsv} disabled={csvBusy}>{t('backup.csvBtn')}</button>
   {#if csvStatus}
     <p class={csvStatus.ok ? 'ok' : 'error'}>{csvStatus.text}</p>
   {/if}

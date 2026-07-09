@@ -1,17 +1,19 @@
 <script lang="ts">
   import { nav, type View } from './lib/nav.svelte';
+  import { t } from './lib/i18n/i18n.svelte';
+  import type { MessageKey } from './lib/i18n/messages';
   import HeuteView from './views/HeuteView.svelte';
   import MonatView from './views/MonatView.svelte';
   import ZyklusView from './views/ZyklusView.svelte';
   import AnalyseView from './views/AnalyseView.svelte';
   import MehrView from './views/MehrView.svelte';
 
-  const tabs: { id: View; label: string }[] = [
-    { id: 'heute', label: 'Heute' },
-    { id: 'monat', label: 'Monat' },
-    { id: 'zyklus', label: 'Zyklus' },
-    { id: 'analyse', label: 'Analyse' },
-    { id: 'mehr', label: 'Mehr' }
+  const tabs: { id: View; labelKey: MessageKey }[] = [
+    { id: 'heute', labelKey: 'nav.heute' },
+    { id: 'monat', labelKey: 'nav.monat' },
+    { id: 'zyklus', labelKey: 'nav.zyklus' },
+    { id: 'analyse', labelKey: 'nav.analyse' },
+    { id: 'mehr', labelKey: 'nav.mehr' }
   ];
 </script>
 
@@ -32,7 +34,7 @@
 <nav class="tabbar">
   {#each tabs as tab (tab.id)}
     <button class:active={nav.view === tab.id} onclick={() => nav.go(tab.id)}>
-      {tab.label}
+      {t(tab.labelKey)}
     </button>
   {/each}
 </nav>

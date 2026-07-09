@@ -1,6 +1,8 @@
 <script lang="ts">
   import { nav } from '../lib/nav.svelte';
-  import { addDays, formatDE, todayISO } from '../lib/date';
+  import { addDays, todayISO } from '../lib/date';
+  import { t } from '../lib/i18n/i18n.svelte';
+  import { formatDateLong } from '../lib/i18n/format';
   import { activeHabits, getDayEntry, getSetting, putOrDeleteDayEntry, setSetting } from '../lib/db';
   import { isBackupOverdue } from '../lib/backup';
   import { disturbanceReasons as computeDisturbanceReasons } from '../lib/disturbance';
@@ -76,40 +78,40 @@
 
 <section class="view">
   <header class="date-nav">
-    <button class="arrow" aria-label="Vorheriger Tag" onclick={() => nav.setDate(addDays(nav.date, -1))}>
+    <button class="arrow" aria-label={t('heute.prevDay')} onclick={() => nav.setDate(addDays(nav.date, -1))}>
       &lsaquo;
     </button>
     <label class="date-label">
-      <span>{formatDE(nav.date)}</span>
+      <span>{formatDateLong(nav.date)}</span>
       <input
         type="date"
-        aria-label="Datum wählen"
+        aria-label={t('heute.pickDate')}
         value={nav.date}
         onchange={(e) => {
           if (e.currentTarget.value) nav.setDate(e.currentTarget.value);
         }}
       />
     </label>
-    <button class="arrow" aria-label="Nächster Tag" onclick={() => nav.setDate(addDays(nav.date, 1))}>
+    <button class="arrow" aria-label={t('heute.nextDay')} onclick={() => nav.setDate(addDays(nav.date, 1))}>
       &rsaquo;
     </button>
   </header>
 
   {#if nav.date !== todayISO()}
-    <button class="today-link" onclick={() => nav.setDate(todayISO())}>Zurück zu heute</button>
+    <button class="today-link" onclick={() => nav.setDate(todayISO())}>{t('heute.backToToday')}</button>
   {/if}
 
   {#if backupOverdue}
     <div class="banner">
-      <span>Letztes Backup liegt über 14 Tage zurück</span>
-      <button onclick={() => nav.go('mehr')}>Zum Backup</button>
+      <span>{t('heute.backupOverdue')}</span>
+      <button onclick={() => nav.go('mehr')}>{t('heute.toBackup')}</button>
     </div>
   {/if}
 
   {#if saveError}
     <div class="banner error-banner">
-      <span>Speichern fehlgeschlagen — letzte Änderung ist nicht gesichert.</span>
-      <button onclick={() => void persist()}>Erneut versuchen</button>
+      <span>{t('heute.saveFailed')}</span>
+      <button onclick={() => void persist()}>{t('common.retry')}</button>
     </div>
   {/if}
 

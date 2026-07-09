@@ -1,8 +1,13 @@
 <script lang="ts">
   import { fade, fly } from 'svelte/transition';
-  import { BLEEDING_LABELS, BLEEDING_ORDER } from '../../lib/types';
+  import { BLEEDING_ORDER } from '../../lib/types';
   import type { Bleeding, DayEntry, HabitDefinition, HabitValue } from '../../lib/types';
-  import { formatDE } from '../../lib/date';
+  import { t, getLang } from '../../lib/i18n/i18n.svelte';
+  import type { MessageKey } from '../../lib/i18n/messages';
+  import { localizedHabitName, localizedScaleLabels, localizedChoices } from '../../lib/i18n/habits';
+  import { formatDateLong } from '../../lib/i18n/format';
+
+  const bleedingKey = (b: Bleeding): MessageKey => `bleeding.${b}` as MessageKey;
 
   interface Props {
     habit: HabitDefinition | null;
@@ -42,28 +47,28 @@
   }
 </script>
 
-<button class="backdrop" transition:fade={{ duration: 150 }} onclick={onClose} aria-label="Schließen"></button>
+<button class="backdrop" transition:fade={{ duration: 150 }} onclick={onClose} aria-label={t('common.close')}></button>
 
 <div
   class="sheet"
   transition:fly={{ y: 240, duration: 200 }}
   role="dialog"
   aria-modal="true"
-  aria-label={habit ? habit.name : 'Periode'}
+  aria-label={habit ? localizedHabitName(habit, getLang()) : t('monat.period')}
 >
   <header>
-    <strong>{habit ? habit.name : 'Periode'}</strong>
-    <span class="muted">{formatDE(date)}</span>
+    <strong>{habit ? localizedHabitName(habit, getLang()) : t('monat.period')}</strong>
+    <span class="muted">{formatDateLong(date)}</span>
   </header>
 
   {#if habit === null}
     <div class="chips">
       {#each BLEEDING_ORDER as b (b)}
         <button class="period-btn" class:selected={bleeding === b} onclick={() => pickBleeding(b)}>
-          {BLEEDING_LABELS[b]}
+          {t(bleedingKey(b))}
         </button>
       {/each}
-      <button class:selected={bleeding === undefined} onclick={() => pickBleeding(undefined)}>keine</button>
+      <button class:selected={bleeding === undefined} onclick={() => pickBleeding(undefined)}>{t('cycle.bleedingNone')}</button>
     </div>
     <div class="chips spot-row">
       <button
@@ -74,21 +79,21 @@
           onClose();
         }}
       >
-        Zwischenblutung
+        {t('sign.spotting')}
       </button>
     </div>
   {:else if habit.type === 'bool'}
     <div class="chips">
-      <button class:selected={value === true} onclick={() => pickBool(true)}>Ja</button>
-      <button class:selected={value === false} onclick={() => pickBool(false)}>Nein</button>
-      <button class:selected={value === undefined} onclick={() => pickBool(undefined)}>Kein Eintrag</button>
+      <button class:selected={value === true} onclick={() => pickBool(true)}>{t('common.yes')}</button>
+      <button class:selected={value === false} onclick={() => pickBool(false)}>{t('common.no')}</button>
+      <button class:selected={value === undefined} onclick={() => pickBool(undefined)}>{t('common.noEntry')}</button>
     </div>
   {:else if habit.type === 'scale4'}
     <div class="scale-list">
       {#each [1, 2, 3, 4] as level (level)}
         <button class:selected={value === level} onclick={() => pickScale(level)}>
           <span class="level">{level}</span>
-          <span>{habit.scaleLabels?.[level - 1] ?? ''}</span>
+          <span>{localizedScaleLabels(habit, getLang())?.[level - 1] ?? ''}</span>
         </button>
       {/each}
       <button
@@ -98,16 +103,16 @@
           onClose();
         }}
       >
-        Kein Eintrag
+        {t('common.noEntry')}
       </button>
     </div>
   {:else}
     <div class="chips">
-      {#each habit.choices ?? [] as c (c)}
-        <button class:selected={chosen.includes(c)} onclick={() => toggleChoice(c)}>{c}</button>
+      {#each habit.choices ?? [] as c, i (c)}
+        <button class:selected={chosen.includes(c)} onclick={() => toggleChoice(c)}>{localizedChoices(habit, getLang())?.[i] ?? c}</button>
       {/each}
     </div>
-    <button class="done" onclick={onClose}>Fertig</button>
+    <button class="done" onclick={onClose}>{t('common.done')}</button>
   {/if}
 </div>
 

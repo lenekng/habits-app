@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Bleeding, CycleObservation, Mucus, Temperature } from '../../lib/types';
-  import { BLEEDING_LABELS, BLEEDING_ORDER, MUCUS_LABELS, MUCUS_ORDER } from '../../lib/types';
+  import { BLEEDING_ORDER, MUCUS_LABELS, MUCUS_ORDER } from '../../lib/types';
+  import { t } from '../../lib/i18n/i18n.svelte';
+  import type { MessageKey } from '../../lib/i18n/messages';
 
   type ExtraKey = 'midPain' | 'breastTenderness' | 'spotting';
 
@@ -18,11 +20,21 @@
     onTempTimeUsed: (time: string) => void;
   } = $props();
 
-  const extras: { key: ExtraKey; label: string }[] = [
-    { key: 'midPain', label: 'Mittelschmerz' },
-    { key: 'breastTenderness', label: 'Brustspannen' },
-    { key: 'spotting', label: 'Zwischenblutung' }
+  const extras: { key: ExtraKey; labelKey: MessageKey }[] = [
+    { key: 'midPain', labelKey: 'sign.midPain' },
+    { key: 'breastTenderness', labelKey: 'sign.breastTenderness' },
+    { key: 'spotting', labelKey: 'sign.spotting' }
   ];
+
+  const MUCUS_DESC: Record<Mucus, MessageKey> = {
+    t: 'mucus.t',
+    none: 'mucus.none',
+    f: 'mucus.f',
+    S: 'mucus.S',
+    'S+': 'mucus.Splus'
+  };
+
+  const bleedingKey = (b: Bleeding): MessageKey => `bleeding.${b}` as MessageKey;
 
   function update(patch: Partial<CycleObservation>, remove: (keyof CycleObservation)[] = []): void {
     const next: CycleObservation = { ...cycle, ...patch };
@@ -117,26 +129,26 @@
   }
 </script>
 
-<h2>Zyklus</h2>
+<h2>{t('cycle.heading')}</h2>
 
 <div class="sub">
-  <span class="sub-label">Blutung</span>
+  <span class="sub-label">{t('cycle.bleeding')}</span>
   <div class="row">
-    <button class:selected={!cycle.bleeding} onclick={() => setBleeding(null)}>keine</button>
+    <button class:selected={!cycle.bleeding} onclick={() => setBleeding(null)}>{t('cycle.bleedingNone')}</button>
     {#each BLEEDING_ORDER as b (b)}
       <button class="bleed" class:selected={cycle.bleeding === b} onclick={() => setBleeding(b)}>
-        {BLEEDING_LABELS[b]}
+        {t(bleedingKey(b))}
       </button>
     {/each}
   </div>
 </div>
 
 <div class="sub">
-  <span class="sub-label">Basaltemperatur</span>
+  <span class="sub-label">{t('cycle.basalTemp')}</span>
   {#if disturbanceReasons.length > 0 && !cycle.temperature?.disturbed}
     <div class="suggest">
-      <span>Gestern: {disturbanceReasons.join(', ')} — Messung als gestört markieren?</span>
-      <button disabled={!cycle.temperature} onclick={applySuggestion}>Als gestört markieren</button>
+      <span>{t('cycle.disturbSuggest', { reasons: disturbanceReasons.join(', ') })}</span>
+      <button disabled={!cycle.temperature} onclick={applySuggestion}>{t('cycle.markDisturbed')}</button>
     </div>
   {/if}
   <div class="temp-row">
@@ -144,22 +156,22 @@
       class="temp-value"
       type="text"
       inputmode="decimal"
-      placeholder="36,50"
-      aria-label="Basaltemperatur in °C"
+      placeholder={t('cycle.tempPlaceholder')}
+      aria-label={t('cycle.tempAria')}
       value={cycle.temperature?.value ?? ''}
       onchange={(e) => setTempValue(e.currentTarget.value)}
     />
     <span class="muted">°C</span>
     <input
       type="time"
-      aria-label="Messzeit"
+      aria-label={t('cycle.measureTime')}
       disabled={!cycle.temperature}
       value={cycle.temperature?.time ?? defaultTempTime}
       onchange={(e) => setTempTime(e.currentTarget.value)}
     />
   </div>
   {#if tempOutOfRange}
-    <p class="hint warn">Wert außerhalb von 34–42 °C — wurde nicht gespeichert.</p>
+    <p class="hint warn">{t('cycle.tempOutOfRange')}</p>
   {/if}
   {#if cycle.temperature}
     <label class="check">
@@ -168,13 +180,13 @@
         checked={cycle.temperature.disturbed}
         onchange={(e) => setDisturbed(e.currentTarget.checked)}
       />
-      Messung gestört
+      {t('cycle.disturbed')}
     </label>
     {#if cycle.temperature.disturbed}
       <input
         class="text-input"
         type="text"
-        placeholder="Grund (optional)"
+        placeholder={t('cycle.reasonOptional')}
         value={cycle.temperature.disturbanceNote ?? ''}
         onchange={(e) => setDisturbanceNote(e.currentTarget.value)}
       />
@@ -185,16 +197,16 @@
         checked={cycle.temperature.excluded}
         onchange={(e) => setExcluded(e.currentTarget.checked)}
       />
-      Wert ausklammern
+      {t('cycle.exclude')}
     </label>
     {#if cycle.temperature.excluded}
-      <p class="hint muted">Wird bei der späteren Auswertung übersprungen.</p>
+      <p class="hint muted">{t('cycle.excludedHint')}</p>
     {/if}
   {/if}
 </div>
 
 <div class="sub">
-  <span class="sub-label">Zervixschleim</span>
+  <span class="sub-label">{t('cycle.mucus')}</span>
   <div class="mucus-row">
     {#each MUCUS_ORDER as m (m)}
       <button class:selected={cycle.mucus === m} onclick={() => toggleMucus(m)}>
@@ -203,24 +215,24 @@
     {/each}
   </div>
   {#if cycle.mucus}
-    <p class="hint muted">{MUCUS_LABELS[cycle.mucus].description}</p>
+    <p class="hint muted">{t(MUCUS_DESC[cycle.mucus])}</p>
   {/if}
 </div>
 
 <div class="sub">
-  <span class="sub-label">Zusatzzeichen</span>
+  <span class="sub-label">{t('cycle.extras')}</span>
   <div class="row">
     {#each extras as ex (ex.key)}
       <button class:selected={cycle[ex.key] === true} onclick={() => toggleExtra(ex.key)}>
-        {ex.label}
+        {t(ex.labelKey)}
       </button>
     {/each}
   </div>
 </div>
 
 <div class="sub">
-  <span class="sub-label">Notiz</span>
-  <textarea rows="2" placeholder="Notiz zum Tag" value={cycle.note ?? ''} onchange={(e) => setNote(e.currentTarget.value)}
+  <span class="sub-label">{t('cycle.note')}</span>
+  <textarea rows="2" placeholder={t('cycle.notePlaceholder')} value={cycle.note ?? ''} onchange={(e) => setNote(e.currentTarget.value)}
   ></textarea>
 </div>
 

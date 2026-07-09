@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t } from '../../../lib/i18n/i18n.svelte';
+
   let { choices = $bindable() }: { choices: string[] } = $props();
 
   function add() {
@@ -13,11 +15,11 @@
 <div class="choices">
   {#each choices as _, i}
     <div class="choice-row">
-      <input type="text" bind:value={choices[i]} placeholder="Option" />
-      <button onclick={() => remove(i)} disabled={choices.length === 1}>Entfernen</button>
+      <input type="text" bind:value={choices[i]} placeholder={t('choices.placeholder')} />
+      <button onclick={() => remove(i)} disabled={choices.length === 1}>{t('choices.remove')}</button>
     </div>
   {/each}
-  <button class="add-choice" onclick={add}>Option hinzufügen</button>
+  <button class="add-choice" onclick={add}>{t('choices.add')}</button>
 </div>
 
 <style>
