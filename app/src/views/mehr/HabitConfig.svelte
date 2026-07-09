@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { flip } from 'svelte/animate';
   import type { HabitDefinition, HabitType } from '../../lib/types';
   import { allHabits, db } from '../../lib/db';
   import HabitEditor from './habitconfig/HabitEditor.svelte';
@@ -15,25 +16,103 @@
   let showArchived = $state(false);
   let showNewForm = $state(false);
 
+  let dragId = $state<string | null>(null);
+  let orderIds = $state<string[]>([]);
+  let listEl = $state<HTMLUListElement | null>(null);
+
   const active = $derived(habits.filter((h) => !h.archivedAt));
   const archived = $derived(habits.filter((h) => h.archivedAt));
   const existingIds = $derived(habits.map((h) => h.id));
   const nextSortOrder = $derived(habits.reduce((m, h) => Math.max(m, h.sortOrder), 0) + 1);
+
+  const byId = $derived(new Map(habits.map((h) => [h.id, h])));
+  const renderList = $derived(
+    dragId
+      ? orderIds.map((id) => byId.get(id)).filter((h): h is HabitDefinition => !!h)
+      : active
+  );
 
   async function load() {
     habits = await allHabits();
   }
   void load();
 
-  async function move(index: number, delta: -1 | 1) {
-    const a = active[index];
-    const b = active[index + delta];
-    if (!a || !b) return;
-    await db.habit_definitions.bulkPut([
-      { ...a, sortOrder: b.sortOrder },
-      { ...b, sortOrder: a.sortOrder }
-    ]);
-    await load();
+  let startOrder: string[] = [];
+  let lastPointerY = 0;
+  let scrollDir = 0;
+  let scrollRAF = 0;
+
+  function onHandleDown(e: PointerEvent, id: string) {
+    if (dragId) return; // laufenden Drag nicht durch Zweitfinger überschreiben
+    e.preventDefault();
+    editingId = null;
+    dragId = id;
+    orderIds = active.map((h) => h.id);
+    startOrder = orderIds;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  // Einfügeindex = Anzahl NICHT-gezogener Zeilen, deren Mittelpunkt über dem
+  // Zeiger liegt. Vermeidet die Splice-Off-by-one beim Ziehen nach unten.
+  function updateTarget(y: number) {
+    if (!dragId || !listEl) return;
+    const items = [...listEl.children] as HTMLElement[];
+    let insert = 0;
+    for (let i = 0; i < items.length; i++) {
+      if (orderIds[i] === dragId) continue;
+      const r = items[i]!.getBoundingClientRect();
+      if (y > r.top + r.height / 2) insert++;
+    }
+    const next = orderIds.filter((id) => id !== dragId);
+    next.splice(insert, 0, dragId);
+    if (next.some((id, i) => id !== orderIds[i])) orderIds = next;
+  }
+
+  function stopAutoScroll() {
+    scrollDir = 0;
+    if (scrollRAF) cancelAnimationFrame(scrollRAF);
+    scrollRAF = 0;
+  }
+
+  function autoScrollTick() {
+    if (!dragId || scrollDir === 0) {
+      scrollRAF = 0;
+      return;
+    }
+    window.scrollBy(0, scrollDir * 10);
+    updateTarget(lastPointerY);
+    scrollRAF = requestAnimationFrame(autoScrollTick);
+  }
+
+  function onHandleMove(e: PointerEvent) {
+    if (!dragId) return;
+    lastPointerY = e.clientY;
+    updateTarget(e.clientY);
+    const margin = 72;
+    if (e.clientY < margin) scrollDir = -1;
+    else if (e.clientY > window.innerHeight - margin) scrollDir = 1;
+    else scrollDir = 0;
+    if (scrollDir !== 0 && !scrollRAF) scrollRAF = requestAnimationFrame(autoScrollTick);
+    else if (scrollDir === 0 && scrollRAF) stopAutoScroll();
+  }
+
+  function onHandleUp() {
+    if (!dragId) return;
+    stopAutoScroll();
+    const changed = orderIds.length === startOrder.length && orderIds.some((id, i) => id !== startOrder[i]);
+    if (changed) {
+      const reordered = orderIds
+        .map((id, i) => {
+          const h = byId.get(id);
+          return h ? { ...h, sortOrder: i } : null;
+        })
+        .filter((h): h is HabitDefinition => !!h);
+      const archivedItems = habits.filter((h) => h.archivedAt);
+      habits = [...reordered, ...archivedItems];
+      void db.habit_definitions.bulkPut(reordered).catch(() => void load());
+    }
+    dragId = null;
+    orderIds = [];
   }
 
   async function reactivate(habit: HabitDefinition) {
@@ -60,10 +139,20 @@
 
 <h1>Habits verwalten</h1>
 
-<ul class="habit-list">
-  {#each active as habit, i (habit.id)}
-    <li class="habit-item">
+<ul class="habit-list" bind:this={listEl}>
+  {#each renderList as habit (habit.id)}
+    <li class="habit-item" class:dragging={dragId === habit.id} animate:flip={{ duration: 180 }}>
       <div class="habit-row">
+        <button
+          class="drag-handle"
+          aria-label="Verschieben"
+          onpointerdown={(e) => onHandleDown(e, habit.id)}
+          onpointermove={onHandleMove}
+          onpointerup={onHandleUp}
+          onpointercancel={onHandleUp}
+        >
+          &#9776;
+        </button>
         <button
           class="row-main"
           onclick={() => toggleEdit(habit.id)}
@@ -72,18 +161,6 @@
           <span class="habit-name">{habit.name}</span>
           <span class="badge">{TYPE_BADGES[habit.type]}</span>
         </button>
-        <div class="sort">
-          <button onclick={() => move(i, -1)} disabled={i === 0} aria-label="Nach oben">
-            &uarr;
-          </button>
-          <button
-            onclick={() => move(i, 1)}
-            disabled={i === active.length - 1}
-            aria-label="Nach unten"
-          >
-            &darr;
-          </button>
-        </div>
       </div>
       {#if editingId === habit.id}
         <HabitEditor {habit} onsaved={onSaved} />
@@ -176,23 +253,31 @@
     white-space: nowrap;
   }
 
-  .sort {
-    display: flex;
-    align-items: center;
-    padding-right: 0.25rem;
-  }
-
-  .sort button {
+  .drag-handle {
+    flex: 0 0 auto;
     min-width: 2.75rem;
     min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border: none;
     background: none;
-    color: var(--accent);
-    font-size: 1.1rem;
+    color: var(--muted);
+    font-size: 1.15rem;
+    cursor: grab;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
-  .sort button:disabled {
-    color: var(--border);
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .habit-item.dragging {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    position: relative;
+    z-index: 3;
   }
 
   .add {
