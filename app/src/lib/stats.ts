@@ -117,22 +117,6 @@ export function cycleVariables(): VariableSpec[] {
   ];
 }
 
-// Klartext-Erklärung einer Korrelation, die die Skalenrichtung schon einrechnet.
-// Anker ist die Spalte („heute"): bei carryover ist die Zeile der Vortag.
-export function correlationSentence(
-  row: VariableSpec,
-  col: VariableSpec,
-  r: number | undefined,
-  carryover: boolean
-): string {
-  if (r === undefined) return '';
-  const colWord = r >= 0 ? col.highLabel : col.lowLabel;
-  const when = carryover
-    ? `War „${row.label}" am Vortag Richtung „${row.highLabel}",`
-    : `An Tagen mit „${row.label}" Richtung „${row.highLabel}"`;
-  return `${when} war „${col.label}" eher „${colWord}".`;
-}
-
 // Durchschnittsränge bei Bindungen (fractional ranking) — Standard für Spearman.
 function ranks(values: number[]): number[] {
   const order = values.map((v, i) => [v, i] as const).sort((a, b) => a[0] - b[0]);

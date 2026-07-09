@@ -1,5 +1,6 @@
 <script lang="ts">
   import { activeHabits, db } from '../../lib/db';
+  import { t } from '../../lib/i18n/i18n.svelte';
   import { todayISO } from '../../lib/date';
   import { buildCycleIndex } from '../../lib/cycles';
   import type { DayEntry, HabitDefinition } from '../../lib/types';
@@ -40,29 +41,29 @@
   const bands = $derived(startISO ? phaseBands(index, startISO, endISO) : []);
 </script>
 
-<h2>Verlauf</h2>
+<h2>{t('analyse.trends')}</h2>
 
 {#if loading}
-  <p class="muted">Laden…</p>
+  <p class="muted">{t('common.loading')}</p>
 {:else}
   <div class="controls">
-    <select bind:value={selectedId} aria-label="Variable wählen">
-      <optgroup label="Habits">
+    <select bind:value={selectedId} aria-label={t('analyse.pickVariable')}>
+      <optgroup label={t('habits.heading')}>
         {#each habitVars as v (v.id)}
           <option value={v.id}>{v.label}</option>
         {/each}
       </optgroup>
-      <optgroup label="Zyklus">
+      <optgroup label={t('nav.zyklus')}>
         {#each cycleVars as v (v.id)}
           <option value={v.id}>{v.label}</option>
         {/each}
       </optgroup>
     </select>
 
-    <div class="segments" role="group" aria-label="Zeitraum">
+    <div class="segments" role="group" aria-label={t('analyse.range')}>
       {#each RANGE_OPTIONS as opt (opt.key)}
         <button class:selected={range === opt.key} onclick={() => (range = opt.key)}>
-          {opt.label}
+          {t(opt.labelKey)}
         </button>
       {/each}
     </div>
@@ -71,11 +72,11 @@
   {#if config && config.hasData && selected}
     <TrendChart {config} {bands} title={selected.label} />
     <p class="band-legend muted">
-      <span class="swatch mens"></span> Menstruation
-      <span class="swatch luteal"></span> Lutealphase
+      <span class="swatch mens"></span> {t('phase.menstruation')}
+      <span class="swatch luteal"></span> {t('phase.luteal')}
     </p>
   {:else}
-    <p class="muted">Noch keine Daten für diese Variable.</p>
+    <p class="muted">{t('analyse.noVarData')}</p>
   {/if}
 {/if}
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { MUCUS_LABELS, type Bleeding } from '../../lib/types';
+  import { t } from '../../lib/i18n/i18n.svelte';
   import { fmtTemp, type ChartDay, type ChartModel } from './kurvenblatt';
 
   let {
@@ -88,9 +89,9 @@
           <text x={GUTTER - 6} y={y(t) + 3} text-anchor="end" class="ax">{fmtAxis(t)}</text>
         {/each}
       {/if}
-      <text x={GUTTER - 6} y={axisY + 13} text-anchor="end" class="ax">Tag</text>
-      <text x={GUTTER - 6} y={bleedCY + 3} text-anchor="end" class="ax">Blutung</text>
-      <text x={GUTTER - 6} y={mucusCY + 3} text-anchor="end" class="ax">Schleim</text>
+      <text x={GUTTER - 6} y={axisY + 13} text-anchor="end" class="ax">{t('chart.axisDay')}</text>
+      <text x={GUTTER - 6} y={bleedCY + 3} text-anchor="end" class="ax">{t('cycle.bleeding')}</text>
+      <text x={GUTTER - 6} y={mucusCY + 3} text-anchor="end" class="ax">{t('chart.axisMucus')}</text>
     </svg>
 
     <svg class="plot" width={plotW} height={H}>
@@ -120,7 +121,7 @@
           <line x1="0" y1={y(t)} x2={plotW} y2={y(t)} stroke="#e1e0d9" stroke-width="0.75" />
         {/each}
       {:else}
-        <text x="10" y={PAD_TOP + TEMP_H / 2} class="empty-note">Noch keine Temperaturwerte in diesem Zyklus</text>
+        <text x="10" y={PAD_TOP + TEMP_H / 2} class="empty-note">{t('chart.noTemps')}</text>
       {/if}
 
       {#if model.coverline}
@@ -128,13 +129,13 @@
         {@const cx1 = (model.coverline.fromDay - 1) * COL}
         {@const cx2 = model.coverline.toDay * COL}
         <line x1={cx1} y1={cy} x2={cx2} y2={cy} stroke="var(--muted)" stroke-width="1.3" stroke-dasharray="5 3" />
-        <text x={cx1 + 2} y={Math.max(cy - 5, 10)} class="cover-label">Hilfslinie {fmtTemp(model.coverline.value)} °C</text>
+        <text x={cx1 + 2} y={Math.max(cy - 5, 10)} class="cover-label">{t('chart.coverline', { temp: fmtTemp(model.coverline.value) })}</text>
       {/if}
 
       {#if model.ovulationDay}
         {@const ox = x(model.ovulationDay)}
         <line x1={ox} y1={PAD_TOP - 4} x2={ox} y2={axisY} stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="4 3" />
-        <text x={ovLabelX(ox)} y="12" text-anchor="middle" class="ov-label">Eisprung ≈ Tag {model.ovulationDay}</text>
+        <text x={ovLabelX(ox)} y="12" text-anchor="middle" class="ov-label">{t('chart.ovulation', { day: model.ovulationDay })}</text>
       {/if}
 
       {#if linePoints}
@@ -203,7 +204,7 @@
           text-anchor={anchorEnd ? 'end' : 'start'}
           class="peak-label"
         >
-          Schleimhöhepunkt
+          {t('chart.mucusPeak')}
         </text>
       {/if}
 
@@ -217,7 +218,7 @@
           fill="transparent"
           role="button"
           tabindex="0"
-          aria-label="Tag {d.day}: Details anzeigen"
+          aria-label={t('chart.dayAria', { day: d.day })}
           onclick={() => onSelectDay(d)}
           onkeydown={(e) => onKey(e, d)}
         />
@@ -229,7 +230,7 @@
 <div class="legend">
   <span class="item">
     <svg width="14" height="14"><circle cx="7" cy="7" r="4" fill="#2a78d6" /></svg>
-    Temperatur
+    {t('chart.legendTemp')}
   </span>
   <span class="item">
     <svg width="26" height="14">
@@ -237,31 +238,31 @@
       <circle cx="13" cy="7" r="4" fill="var(--surface)" stroke="#2a78d6" stroke-width="1.5" />
       <text x="22" y="11" text-anchor="middle" class="paren">)</text>
     </svg>
-    ausgeklammert
+    {t('chart.legendExcluded')}
   </span>
   <span class="item">
     <svg width="16" height="16">
       <circle cx="8" cy="8" r="6" fill="none" stroke="var(--period)" stroke-width="1.4" stroke-dasharray="2.5 2" />
       <circle cx="8" cy="8" r="3.5" fill="#2a78d6" />
     </svg>
-    gestörte Messung
+    {t('chart.legendDisturbed')}
   </span>
   <span class="item">
     <svg width="18" height="18">
       <circle cx="9" cy="9" r="7" fill="none" stroke="#2a78d6" stroke-width="2" opacity="0.3" />
       <circle cx="9" cy="9" r="3.5" fill="#2a78d6" />
     </svg>
-    1. höhere Messung / Bestätigung
+    {t('chart.legendFirstHigh')}
   </span>
   <span class="item">
     <svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="var(--period)" /></svg>
-    Blutung (Größe = Stärke)
+    {t('chart.legendBleeding')}
   </span>
   <span class="item">
     <svg width="12" height="12"><polygon points="1.5,10 10.5,10 6,2.5" fill="var(--accent)" /></svg>
-    Schleimhöhepunkt
+    {t('chart.mucusPeak')}
   </span>
-  <span class="item hint">Tag antippen für Details</span>
+  <span class="item hint">{t('chart.legendHint')}</span>
 </div>
 
 <style>

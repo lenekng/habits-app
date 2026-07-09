@@ -1,5 +1,6 @@
 import type { CycleInfo } from './cycles';
 import { addDays } from './date';
+import type { MessageKey } from './i18n/messages';
 
 export type PredictionMethod = 'temperature' | 'length' | 'none';
 
@@ -13,7 +14,8 @@ export interface PeriodPrediction {
   basedOnCycles: number;
   usedDefaultLuteal?: boolean;
   hasTempShift?: boolean; // aktueller Zyklus hat schon einen bestätigten Anstieg
-  reason?: string; // gesetzt, wenn method === 'none'
+  // gesetzt, wenn method === 'none'; i18n-Katalog-Key + Parameter statt fertigem Text
+  reason?: { key: MessageKey; params?: Record<string, string | number> };
 }
 
 const MIN_LENGTH_CYCLES = 3;
@@ -69,7 +71,7 @@ function finalize(
 
 export function predictNextPeriod(cycles: CycleInfo[], today: string): PeriodPrediction {
   if (cycles.length === 0) {
-    return { method: 'none', basedOnCycles: 0, reason: 'Noch kein Zyklus erkannt.' };
+    return { method: 'none', basedOnCycles: 0, reason: { key: 'pred.reasonNoCycle' } };
   }
 
   const current = cycles[cycles.length - 1]!;
@@ -105,7 +107,10 @@ export function predictNextPeriod(cycles: CycleInfo[], today: string): PeriodPre
       method: 'none',
       basedOnCycles: lengths.length,
       hasTempShift,
-      reason: `Für eine Vorhersage braucht es mindestens ${MIN_LENGTH_CYCLES} abgeschlossene Zyklen (aktuell ${lengths.length}).`
+      reason: {
+        key: 'pred.reasonNeedCycles',
+        params: { min: MIN_LENGTH_CYCLES, current: lengths.length }
+      }
     };
   }
 

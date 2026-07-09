@@ -74,7 +74,8 @@ describe('predictNextPeriod – Längen-Methode', () => {
   it('zu wenige Zyklen → keine Vorhersage', () => {
     const p = predictNextPeriod([cycle('2026-01-01', 28), cycle('2026-01-29')], '2026-02-05');
     expect(p.method).toBe('none');
-    expect(p.reason).toContain('mindestens');
+    expect(p.reason?.key).toBe('pred.reasonNeedCycles');
+    expect(p.reason?.params?.min).toBe(3);
   });
 });
 

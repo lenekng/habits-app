@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { PeriodPrediction } from '../../lib/prediction';
+  import { t, locale } from '../../lib/i18n/i18n.svelte';
 
   let { prediction }: { prediction: PeriodPrediction } = $props();
 
   function fmt(iso: string): string {
     const [y, m, d] = iso.split('-').map(Number);
-    return new Date(y!, m! - 1, d!).toLocaleDateString('de-DE', {
+    return new Date(y!, m! - 1, d!).toLocaleDateString(locale(), {
       weekday: 'short',
       day: 'numeric',
       month: 'long'
@@ -14,53 +15,56 @@
 
   function fmtShort(iso: string): string {
     const [y, m, d] = iso.split('-').map(Number);
-    return new Date(y!, m! - 1, d!).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+    return new Date(y!, m! - 1, d!).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
   }
 
   const relative = $derived.by(() => {
     const p = prediction;
     if (p.overdueDays && p.overdueDays > 0) {
-      return { text: `überfällig seit ${p.overdueDays} ${p.overdueDays === 1 ? 'Tag' : 'Tagen'}`, tone: 'over' };
+      return { text: t('pred.overdue', { n: p.overdueDays }), tone: 'over' };
     }
     const d = p.daysUntilLikely;
     if (d === undefined) return null;
-    if (d === 0) return { text: 'wahrscheinlich heute', tone: 'soon' };
-    if (d < 0) return { text: `wahrscheinlich vor ${-d} ${-d === 1 ? 'Tag' : 'Tagen'}`, tone: 'over' };
-    return { text: `in ${d} ${d === 1 ? 'Tag' : 'Tagen'}`, tone: d <= 3 ? 'soon' : 'normal' };
+    if (d === 0) return { text: t('pred.today'), tone: 'soon' };
+    if (d < 0) return { text: t('pred.before', { n: -d }), tone: 'over' };
+    return { text: t('pred.inDays', { n: d }), tone: d <= 3 ? 'soon' : 'normal' };
   });
 
   const basis = $derived.by(() => {
     const p = prediction;
     if (p.method === 'temperature') {
       return p.usedDefaultLuteal
-        ? 'Nach dem Temperaturanstieg, mit Standard-Lutealphase (14 Tage) — wird genauer, sobald du eigene Temperatur-Zyklen gesammelt hast.'
-        : `Nach dem bestätigten Temperaturanstieg, über deine eigene Lutealphase (aus ${prediction.basedOnCycles} Zyklen). Das ist die genaueste Schätzung.`;
+        ? t('pred.basisTempDefault')
+        : t('pred.basisTempOwn', { n: p.basedOnCycles });
     }
     if (p.method === 'length') {
-      const hint = p.hasTempShift
-        ? ''
-        : ' Sie verengt sich, sobald in diesem Zyklus ein Temperaturanstieg erkannt wird.';
-      return `Aus der Verteilung deiner ${p.basedOnCycles} bisherigen Zykluslängen.${hint}`;
+      const hint = p.hasTempShift ? '' : t('pred.basisLengthHint');
+      return t('pred.basisLength', { n: p.basedOnCycles }) + hint;
     }
-    return p.reason ?? '';
+    return '';
   });
 </script>
 
 <div class="pred" class:over={relative?.tone === 'over'}>
   <div class="head">
-    <span class="label">Nächste Periode</span>
-    {#if prediction.method === 'temperature'}<span class="pill">genau</span>{/if}
+    <span class="label">{t('pred.title')}</span>
+    {#if prediction.method === 'temperature'}<span class="pill">{t('pred.exact')}</span>{/if}
   </div>
 
   {#if prediction.method === 'none'}
-    <p class="reason">{prediction.reason}</p>
+    {#if prediction.reason}
+      <p class="reason">{t(prediction.reason.key, prediction.reason.params)}</p>
+    {/if}
   {:else}
     <p class="main">
       <span class="date">{fmt(prediction.likelyDate!)}</span>
       {#if relative}<span class="rel {relative.tone}">· {relative.text}</span>{/if}
     </p>
     <p class="window">
-      Zeitfenster {fmtShort(prediction.earliestDate!)} – {fmtShort(prediction.latestDate!)}
+      {t('pred.window', {
+        from: fmtShort(prediction.earliestDate!),
+        to: fmtShort(prediction.latestDate!)
+      })}
     </p>
   {/if}
 
