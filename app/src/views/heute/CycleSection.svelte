@@ -142,12 +142,9 @@
   <div class="temp-row">
     <input
       class="temp-value"
-      type="number"
+      type="text"
       inputmode="decimal"
-      step="0.01"
-      min="34"
-      max="42"
-      placeholder="36.50"
+      placeholder="36,50"
       aria-label="Basaltemperatur in °C"
       value={cycle.temperature?.value ?? ''}
       onchange={(e) => setTempValue(e.currentTarget.value)}
