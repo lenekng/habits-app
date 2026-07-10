@@ -253,6 +253,21 @@ const de = {
   'cyclevar.zyklustag': 'Zyklustag',
   'cyclevar.lutealphase': 'Lutealphase (ja/nein)',
 
+  'impl.cardTitle': (p: MsgParams) =>
+    Number(p.n) === 1
+      ? 'Auffälligkeit gefunden: 1 sehr eindeutiges Muster'
+      : `Auffälligkeiten gefunden: ${p.n} sehr eindeutige Muster`,
+  'impl.intro':
+    'Hier erscheinen automatisch geprüfte, sehr eindeutige Muster aus deinen Daten: einseitige Implikationen (⇒) wie „krank ⇒ kein Sport", bei denen die Umkehrung nicht gilt, und beidseitige Korrelationen (↔), bei denen zwei Größen durchgängig zusammen steigen oder fallen. Anders als in der Korrelationsmatrix unten musst du nichts auswählen — geprüft werden alle Paare.',
+  'impl.forward': (p: MsgParams) =>
+    `An ${p.nA} Tagen galt „${p.a}" — an ${p.nAB} davon (${p.pct} %) auch „${p.b}".`,
+  'impl.reverse': (p: MsgParams) =>
+    `Umgekehrt nicht: Von ${p.nB} Tagen mit „${p.b}" hatten nur ${p.nAB} (${p.pct} %) auch „${p.a}".`,
+  'impl.baseline': (p: MsgParams) =>
+    `Zum Vergleich: An Tagen ohne „${p.a}" kam „${p.b}" nur in ${p.pct} % vor.`,
+  'impl.footnote': (p: MsgParams) =>
+    `Kriterien einseitig (⇒): Bedingung mindestens ${p.minDays}-mal aufgetreten, Folge in mindestens ${p.conf} % der Fälle und deutlich über der Basisrate (einseitiger exakter Fisher-Test mit Bonferroni-Korrektur), Gegenrichtung höchstens ${p.rev} %; verglichen wird derselbe Tag. Kriterien beidseitig (↔): Spearman |ρ| ≥ ${String(p.rho).replace('.', ',')} bei mindestens ${p.corrDays} gemeinsamen Tagen und Signifikanz nach Bonferroni-Korrektur; „Vortag" paart wie in der Matrix den Vortag mit dem Folgetag. Bei Ja/Nein- und Auswahl-Habits zählt ein erfasster Tag ohne Angabe als „nein". Zusammenhang heißt nicht Ursache.`,
+
   'pred.title': 'Nächste Periode',
   'pred.exact': 'genau',
   'pred.overdue': (p: MsgParams) => `überfällig seit ${p.n} ${Number(p.n) === 1 ? 'Tag' : 'Tagen'}`,
@@ -583,6 +598,21 @@ const en: Record<MessageKey, Msg> = {
   'cyclevar.schleim': 'Cervical mucus quality',
   'cyclevar.zyklustag': 'Cycle day',
   'cyclevar.lutealphase': 'Luteal phase (yes/no)',
+
+  'impl.cardTitle': (p: MsgParams) =>
+    Number(p.n) === 1
+      ? 'Pattern found: 1 very clear pattern'
+      : `Patterns found: ${p.n} very clear patterns`,
+  'impl.intro':
+    'Automatically checked, very clear patterns from your data: one-directional implications (⇒) like "sick ⇒ no exercise", where the reverse does not hold, and two-sided correlations (↔), where two quantities consistently rise or fall together. Unlike the correlation matrix below, nothing needs to be selected — all pairs are checked.',
+  'impl.forward': (p: MsgParams) =>
+    `"${p.a}" held on ${p.nA} days — on ${p.nAB} of them (${p.pct} %) "${p.b}" held too.`,
+  'impl.reverse': (p: MsgParams) =>
+    `Not the other way round: of ${p.nB} days with "${p.b}", only ${p.nAB} (${p.pct} %) also had "${p.a}".`,
+  'impl.baseline': (p: MsgParams) =>
+    `For comparison: on days without "${p.a}", "${p.b}" occurred only ${p.pct} % of the time.`,
+  'impl.footnote': (p: MsgParams) =>
+    `One-directional criteria (⇒): condition occurred at least ${p.minDays} times, consequence in at least ${p.conf} % of cases and clearly above the base rate (one-sided exact Fisher test with Bonferroni correction), reverse direction at most ${p.rev} %; compared on the same day. Two-sided criteria (↔): Spearman |ρ| ≥ ${p.rho} over at least ${p.corrDays} shared days and significance after Bonferroni correction; "Prev. day" pairs the previous day with the following day, as in the matrix. For yes/no and choice habits, a tracked day without a mark counts as "no". Correlation is not causation.`,
 
   'pred.title': 'Next period',
   'pred.exact': 'precise',
