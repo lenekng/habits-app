@@ -53,6 +53,13 @@ const gefuehle: HabitDefinition = {
   scaleLabels: ['schlecht', 'eher schlecht', 'eher gut', 'gut'],
   sortOrder: 7
 };
+const schlafdauer: HabitDefinition = {
+  id: 'schlafdauer',
+  name: 'Schlafdauer',
+  type: 'scale4',
+  scaleLabels: ['unter 6 h', '6–7 h', '7–8 h', 'über 8 h'],
+  sortOrder: 8
+};
 
 const EMPTY_INDEX = buildCycleIndex([]);
 
@@ -243,6 +250,19 @@ describe('findStrongCorrelations', () => {
     expect(f.aId).toBe('alkohol');
     expect(f.bId).toBe('schlaf');
     expect(f.lagged).toBe(true);
+    expect(f.rho).toBeCloseTo(1);
+  });
+
+  it('Schlafdauer wird auch mit carryover-Habits am selben Tag gepaart', () => {
+    // Schlafdauer ist kein Folgetag-Ziel: obwohl Alkohol carryover ist, wird
+    // das Paar gleichtägig geprüft — Dauer heute früh ↔ Verhalten heute
+    const entries = Array.from({ length: 90 }, (_, i) =>
+      day(i, { alkohol: (i % 4) + 1, schlafdauer: (i % 4) + 1 })
+    );
+    const findings = findStrongCorrelations(entries, [alkohol, schlafdauer], EMPTY_INDEX);
+    expect(findings).toHaveLength(1);
+    const f = findings[0]!;
+    expect(f.lagged).toBe(false);
     expect(f.rho).toBeCloseTo(1);
   });
 

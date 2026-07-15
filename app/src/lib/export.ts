@@ -1,5 +1,6 @@
 import type { Cycle, DayEntry, HabitDefinition, HabitValue, Setting } from './types';
 import { POLARITY_FLIP_IDS, flipScale4Value } from './polarity';
+import { splitSleepHabits } from './sleep-split';
 
 export const BACKUP_APP_ID = 'habits-app';
 
@@ -152,30 +153,44 @@ export function summarizeBackup(payload: BackupPayload): BackupSummary {
   };
 }
 
-// Hebt ein Backup auf das aktuelle Schema. Schema 1 → 2: Alkohol/Stress von
-// „1 = ideal" auf „4 = ideal" umdrehen (Werte 5−v, Label-Reihenfolge), damit
-// ein alter Export nach dem Restore nicht die alte Orientierung zurückholt.
+// Hebt ein Backup stufenweise auf das aktuelle Schema. Jede Stufe prüft die
+// Ausgangsversion des Backups — ein v2-Backup darf beim Sprung auf 3 nicht
+// erneut geflippt werden.
+// 1 → 2: Alkohol/Stress von „1 = ideal" auf „4 = ideal" umdrehen (Werte 5−v,
+//        Label-Reihenfolge), damit ein alter Export nach dem Restore nicht die
+//        alte Orientierung zurückholt.
+// 2 → 3: „Gut geschlafen" in Schlafqualität + Schlafdauer aufteilen
+//        (Transformation in sleep-split.ts, geteilt mit der Dexie-Migration).
 export function upgradeBackupPayload(payload: BackupPayload, targetSchemaVersion: number): BackupPayload {
   if (payload.schemaVersion >= targetSchemaVersion) return payload;
 
-  const day_entries = payload.day_entries.map((e) => {
-    if (!e.habits) return e;
-    const habits = { ...e.habits };
-    let touched = false;
-    for (const id of POLARITY_FLIP_IDS) {
-      if (id in habits) {
-        habits[id] = flipScale4Value(habits[id]) as HabitValue;
-        touched = true;
-      }
-    }
-    return touched ? { ...e, habits } : e;
-  });
+  let day_entries = payload.day_entries;
+  let habit_definitions = payload.habit_definitions;
 
-  const habit_definitions = payload.habit_definitions.map((h) =>
-    POLARITY_FLIP_IDS.includes(h.id as never) && Array.isArray(h.scaleLabels)
-      ? { ...h, scaleLabels: [...h.scaleLabels].reverse() as HabitDefinition['scaleLabels'] }
-      : h
-  );
+  if (payload.schemaVersion < 2) {
+    day_entries = day_entries.map((e) => {
+      if (!e.habits) return e;
+      const habits = { ...e.habits };
+      let touched = false;
+      for (const id of POLARITY_FLIP_IDS) {
+        if (id in habits) {
+          habits[id] = flipScale4Value(habits[id]) as HabitValue;
+          touched = true;
+        }
+      }
+      return touched ? { ...e, habits } : e;
+    });
+
+    habit_definitions = habit_definitions.map((h) =>
+      POLARITY_FLIP_IDS.includes(h.id as never) && Array.isArray(h.scaleLabels)
+        ? { ...h, scaleLabels: [...h.scaleLabels].reverse() as HabitDefinition['scaleLabels'] }
+        : h
+    );
+  }
+
+  if (payload.schemaVersion < 3 && targetSchemaVersion >= 3) {
+    habit_definitions = splitSleepHabits(habit_definitions);
+  }
 
   return { ...payload, schemaVersion: targetSchemaVersion, day_entries, habit_definitions };
 }

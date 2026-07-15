@@ -9,6 +9,9 @@ export interface VariableSpec {
   // (z. B. Alkohol → Schlaf/Stimmung am Morgen danach). Solche Variablen werden
   // in der Korrelationsmatrix automatisch mit dem Folgetag gepaart (Lag 1).
   carryover: boolean;
+  // carryoverTarget: darf diese Variable als Folgetag-Ziel eines carryover-
+  // Habits gepaart werden? Schlafdauer nicht (NO_CARRYOVER_TARGET_IDS).
+  carryoverTarget: boolean;
   // Begriffe für das obere/untere Ende der Skala — für die Klartext-Erklärung
   // einer Korrelation (z. B. Alkohol: high „keiner", low „viel").
   highLabel: string;
@@ -34,6 +37,14 @@ const CARRYOVER_HABIT_IDS = new Set([
   'soziale_kontakte'
 ]);
 
+// Variablen, die nicht als Folgetag-Ziel von carryover-Habits taugen.
+// Schlafdauer wird morgens für die vergangene Nacht erfasst, ist aber v. a.
+// durch Wecker/Termine bestimmt — Vortags-Verhalten (Alkohol etc.) prägt sie
+// nicht; sie wirkt nur auf den laufenden Tag (Lag 0). Die Schlafqualität
+// (`schlaf`) bleibt dagegen bewusst Ziel: Alkohol/Stress vom Vortag wirken
+// auf die Nacht danach.
+const NO_CARRYOVER_TARGET_IDS = new Set(['schlafdauer']);
+
 function habitEndLabels(habit: HabitDefinition): { high: string; low: string } {
   if (habit.type === 'scale4' && habit.scaleLabels) {
     return { high: habit.scaleLabels[3], low: habit.scaleLabels[0] };
@@ -48,6 +59,7 @@ export function habitVariable(habit: HabitDefinition): VariableSpec {
     id: habit.id,
     label: habit.name,
     carryover: CARRYOVER_HABIT_IDS.has(habit.id),
+    carryoverTarget: !NO_CARRYOVER_TARGET_IDS.has(habit.id),
     highLabel: ends.high,
     lowLabel: ends.low,
     extract: (entry) => {
@@ -60,8 +72,12 @@ export function habitVariable(habit: HabitDefinition): VariableSpec {
   };
 }
 
-export function autoLag(row: VariableSpec): 0 | 1 {
-  return row.carryover ? 1 : 0;
+// Lag einer Matrix-Zelle: carryover-Zeilen (Vortag) werden mit dem Folgetag
+// der Spalte gepaart — außer die Spalte ist kein carryover-Ziel (Schlafdauer),
+// dann gibt es kein sinnvolles Paar und die Zelle bleibt leer (undefined).
+export function pairLag(row: VariableSpec, col: VariableSpec): 0 | 1 | undefined {
+  if (!row.carryover) return 0;
+  return col.carryoverTarget ? 1 : undefined;
 }
 
 export function cycleVariables(): VariableSpec[] {
@@ -70,6 +86,7 @@ export function cycleVariables(): VariableSpec[] {
       id: 'temperatur',
       label: 'Basaltemperatur',
       carryover: false,
+      carryoverTarget: true,
       highLabel: 'höher',
       lowLabel: 'niedriger',
       extract: (entry) => {
@@ -81,6 +98,7 @@ export function cycleVariables(): VariableSpec[] {
       id: 'blutung',
       label: 'Blutungsstärke',
       carryover: false,
+      carryoverTarget: true,
       highLabel: 'stärker',
       lowLabel: 'schwächer',
       extract: (entry) =>
@@ -90,6 +108,7 @@ export function cycleVariables(): VariableSpec[] {
       id: 'schleim',
       label: 'Zervixschleim-Qualität',
       carryover: false,
+      carryoverTarget: true,
       highLabel: 'hochwertiger',
       lowLabel: 'trockener',
       extract: (entry) => (entry?.cycle?.mucus ? MUCUS_LEVEL[entry.cycle.mucus] : undefined)
@@ -98,6 +117,7 @@ export function cycleVariables(): VariableSpec[] {
       id: 'zyklustag',
       label: 'Zyklustag',
       carryover: false,
+      carryoverTarget: true,
       highLabel: 'später im Zyklus',
       lowLabel: 'früh im Zyklus',
       extract: (_e, date, index) => index.cycleDayByDate.get(date)
@@ -106,6 +126,7 @@ export function cycleVariables(): VariableSpec[] {
       id: 'lutealphase',
       label: 'Lutealphase (ja/nein)',
       carryover: false,
+      carryoverTarget: true,
       highLabel: 'Lutealphase',
       lowLabel: 'Follikelphase',
       extract: (_e, date, index) => {

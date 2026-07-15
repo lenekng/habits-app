@@ -41,7 +41,7 @@
     ready = true;
   }
 
-  const disturbanceReasons = $derived(computeDisturbanceReasons(prevHabits));
+  const disturbanceReasons = $derived(computeDisturbanceReasons(prevHabits, habits));
 
   let saveError = $state(false);
 

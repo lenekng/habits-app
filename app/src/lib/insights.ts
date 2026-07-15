@@ -266,6 +266,7 @@ function varies(values: number[], minOther: number): boolean {
 interface ScanVariable {
   id: string;
   carryover: boolean;
+  carryoverTarget: boolean;
   isCycle: boolean;
   extract: (entry: DayEntry | undefined, date: string, index: CycleIndex) => number | undefined;
 }
@@ -278,15 +279,20 @@ export function findStrongCorrelations(
 ): CorrelationFinding[] {
   const byDate = new Map(entries.map((e) => [e.date, e]));
   const vars: ScanVariable[] = [
-    ...habits.map((h) => ({
-      id: h.id,
-      carryover: habitVariable(h).carryover,
-      isCycle: false,
-      extract: (entry: DayEntry | undefined) => correlationValue(h, entry)
-    })),
+    ...habits.map((h) => {
+      const spec = habitVariable(h);
+      return {
+        id: h.id,
+        carryover: spec.carryover,
+        carryoverTarget: spec.carryoverTarget,
+        isCycle: false,
+        extract: (entry: DayEntry | undefined) => correlationValue(h, entry)
+      };
+    }),
     ...cycleVariables().map((v) => ({
       id: v.id,
       carryover: false,
+      carryoverTarget: v.carryoverTarget,
       isCycle: true,
       extract: v.extract
     }))
@@ -302,18 +308,22 @@ export function findStrongCorrelations(
       // Lutealphase, Temperatur hängen per Definition zusammen) — solche
       // Befunde wären trivial
       if (va.isCycle && vb.isCycle) continue;
-      // carryover-Habits werden wie in der Korrelationsmatrix (autoLag) mit
-      // dem Folgetag der anderen Variable gepaart (z. B. Alkohol → Schlaf
-      // danach). Sind beide carryover, prüft die Matrix beide Lag-Richtungen —
-      // hier genauso; behalten wird unten der stärkste Befund des Paars.
-      const lagged = va.carryover || vb.carryover;
+      // carryover-Habits werden wie in der Korrelationsmatrix (pairLag) mit
+      // dem Folgetag der anderen Variable gepaart (z. B. Alkohol → Schlaf-
+      // qualität danach) — außer die andere Seite ist kein carryover-Ziel
+      // (Schlafdauer), dann bleibt das Paar beim selben Tag. Sind beide
+      // carryover, prüft die Matrix beide Lag-Richtungen — hier genauso;
+      // behalten wird unten der stärkste Befund des Paars.
+      const aLeads = va.carryover && vb.carryoverTarget;
+      const bLeads = vb.carryover && va.carryoverTarget;
+      const lagged = aLeads || bLeads;
       const orientations: [ScanVariable, ScanVariable][] =
-        va.carryover && vb.carryover
+        aLeads && bLeads
           ? [
               [va, vb],
               [vb, va]
             ]
-          : vb.carryover
+          : bLeads
             ? [[vb, va]]
             : [[va, vb]];
 

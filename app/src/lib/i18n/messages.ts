@@ -36,7 +36,7 @@ const de = {
   'cycle.bleedingNone': 'keine',
   'cycle.basalTemp': 'Basaltemperatur',
   'cycle.disturbSuggest': (p: MsgParams) =>
-    `Gestern: ${p.reasons} — Messung als gestört markieren?`,
+    `Mögliche Störung: ${p.reasons} — Messung als gestört markieren?`,
   'cycle.markDisturbed': 'Als gestört markieren',
   'cycle.tempAria': 'Basaltemperatur in °C',
   'cycle.measureTime': 'Messzeit',
@@ -231,7 +231,9 @@ const de = {
     'Ein Wert nahe +1 heißt: steigt die eine Größe, steigt meist auch die andere. Nahe −1: steigt die eine, sinkt die andere. Um 0: kein erkennbarer Zusammenhang.',
   'corr.pillPrevDay': 'Vortag',
   'corr.carryoverNote': (p: MsgParams) =>
-    `Zeilen mit „Vortag" wirken erfahrungsgemäß erst am nächsten Tag — dort wird der Zeilenwert vom Vortag mit dem Spaltenwert von heute verglichen (z. B. Alkohol gestern ↔ Schlaf heute früh). Betrifft: ${p.labels}.`,
+    `Zeilen mit „Vortag" wirken erfahrungsgemäß erst am nächsten Tag — dort wird der Zeilenwert vom Vortag mit dem Spaltenwert von heute verglichen (z. B. Alkohol gestern ↔ Schlafqualität heute früh). Betrifft: ${p.labels}.`,
+  'corr.noCarryoverTargetNote': (p: MsgParams) =>
+    `${p.labels}: wird nicht vom Vortag beeinflusst — in „Vortag"-Zeilen bleibt diese Spalte leer.`,
   'corr.selectHint': 'Mindestens zwei Variablen auswählen.',
   'corr.relPrevToday': 'Vortag → heute',
   'corr.relSameDay': 'gleicher Tag',
@@ -384,7 +386,7 @@ const en: Record<MessageKey, Msg> = {
   'cycle.bleedingNone': 'none',
   'cycle.basalTemp': 'Basal temperature',
   'cycle.disturbSuggest': (p: MsgParams) =>
-    `Yesterday: ${p.reasons} — mark measurement as disturbed?`,
+    `Possible disturbance: ${p.reasons} — mark measurement as disturbed?`,
   'cycle.markDisturbed': 'Mark as disturbed',
   'cycle.tempAria': 'Basal temperature in °C',
   'cycle.measureTime': 'Measurement time',
@@ -577,7 +579,9 @@ const en: Record<MessageKey, Msg> = {
     'A value near +1 means: as one quantity rises, the other usually rises too. Near −1: as one rises, the other falls. Around 0: no discernible relationship.',
   'corr.pillPrevDay': 'Prev. day',
   'corr.carryoverNote': (p: MsgParams) =>
-    `Rows marked "Prev. day" typically take effect the next day — there the row value from the previous day is compared with the column value of today (e.g. alcohol yesterday ↔ sleep this morning). Applies to: ${p.labels}.`,
+    `Rows marked "Prev. day" typically take effect the next day — there the row value from the previous day is compared with the column value of today (e.g. alcohol yesterday ↔ sleep quality this morning). Applies to: ${p.labels}.`,
+  'corr.noCarryoverTargetNote': (p: MsgParams) =>
+    `${p.labels}: not influenced by the previous day — this column stays empty in "prev. day" rows.`,
   'corr.selectHint': 'Select at least two variables.',
   'corr.relPrevToday': 'prev day → today',
   'corr.relSameDay': 'same day',

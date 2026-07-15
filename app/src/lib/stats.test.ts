@@ -1,35 +1,47 @@
 import { describe, expect, it } from 'vitest';
 import { buildCycleIndex } from './cycles';
 import {
-  autoLag,
   correlate,
   cycleVariables,
   habitVariable,
   meanByCycleDay,
+  pairLag,
   phaseProfile,
   spearman
 } from './stats';
 import type { DayEntry, HabitDefinition } from './types';
 
 const alkohol: HabitDefinition = { id: 'alkohol', name: 'Alkohol', type: 'scale4', sortOrder: 1 };
-const schlaf: HabitDefinition = { id: 'schlaf', name: 'Gut geschlafen', type: 'scale4', sortOrder: 2 };
+const schlaf: HabitDefinition = { id: 'schlaf', name: 'Schlafqualität', type: 'scale4', sortOrder: 2 };
+const schlafdauer: HabitDefinition = { id: 'schlafdauer', name: 'Schlafdauer', type: 'scale4', sortOrder: 3 };
 
-describe('autoLag / carryover', () => {
+describe('pairLag / carryover', () => {
   it('nachwirkende Habits (Alkohol) → Lag 1', () => {
-    expect(autoLag(habitVariable(alkohol))).toBe(1);
+    expect(pairLag(habitVariable(alkohol), habitVariable(schlaf))).toBe(1);
   });
 
-  it('Ergebnis-Habits (Gut geschlafen) → Lag 0', () => {
-    expect(autoLag(habitVariable(schlaf))).toBe(0);
+  it('Ergebnis-Habits (Schlafqualität) → Lag 0', () => {
+    expect(pairLag(habitVariable(schlaf), habitVariable(alkohol))).toBe(0);
   });
 
-  it('Zyklus-Variablen sind nie nachwirkend', () => {
+  it('Schlafdauer ist kein Folgetag-Ziel: Vortag-Zeile × Schlafdauer entfällt', () => {
+    expect(habitVariable(schlafdauer).carryoverTarget).toBe(false);
+    expect(pairLag(habitVariable(alkohol), habitVariable(schlafdauer))).toBeUndefined();
+  });
+
+  it('Schlafdauer als Zeile wirkt auf denselben Tag (Lag 0)', () => {
+    expect(pairLag(habitVariable(schlafdauer), habitVariable(alkohol))).toBe(0);
+  });
+
+  it('Zyklus-Variablen sind nie nachwirkend, aber gültige Folgetag-Ziele', () => {
     expect(cycleVariables().every((v) => v.carryover === false)).toBe(true);
+    expect(cycleVariables().every((v) => v.carryoverTarget === true)).toBe(true);
   });
 
   it('unbekannte/eigene Habits sind standardmäßig nicht nachwirkend', () => {
     const custom: HabitDefinition = { id: 'kaelte_dusche', name: 'Kälte-Dusche', type: 'bool', sortOrder: 9 };
-    expect(autoLag(habitVariable(custom))).toBe(0);
+    expect(pairLag(habitVariable(custom), habitVariable(alkohol))).toBe(0);
+    expect(habitVariable(custom).carryoverTarget).toBe(true);
   });
 });
 

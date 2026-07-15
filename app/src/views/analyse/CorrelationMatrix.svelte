@@ -2,7 +2,7 @@
   import {
     cycleVariables,
     correlate,
-    autoLag,
+    pairLag,
     type VariableSpec,
     type CorrelationCell
   } from '../../lib/stats';
@@ -43,13 +43,19 @@
 
   const carryoverLabels = $derived(vars.filter((v) => v.carryover).map((v) => v.label));
 
+  const noTargetLabels = $derived(
+    carryoverLabels.length > 0 ? vars.filter((v) => !v.carryoverTarget).map((v) => v.label) : []
+  );
+
   const matrix = $derived.by((): (CorrelationCell | null)[][] => {
     if (!data) return [];
     const d = data;
     return vars.map((rowVar, i) =>
       vars.map((colVar, j) => {
         if (i === j) return null;
-        return correlate(d.entries, rowVar, colVar, autoLag(rowVar), d.index);
+        const lag = pairLag(rowVar, colVar);
+        if (lag === undefined) return null;
+        return correlate(d.entries, rowVar, colVar, lag, d.index);
       })
     );
   });
@@ -106,6 +112,9 @@
     <p><strong>{t('corr.howToReadTitle')}</strong> {t('corr.howToReadBody')}</p>
     {#if carryoverLabels.length > 0}
       <p class="muted">{t('corr.carryoverNote', { labels: carryoverLabels.join(', ') })}</p>
+    {/if}
+    {#if noTargetLabels.length > 0}
+      <p class="muted">{t('corr.noCarryoverTargetNote', { labels: noTargetLabels.join(', ') })}</p>
     {/if}
   </div>
 

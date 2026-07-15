@@ -50,10 +50,17 @@ export const DEFAULT_HABIT_I18N: Record<string, HabitI18n> = {
     }
   },
   schlaf: {
-    name: { de: 'Gut geschlafen', en: 'Slept well' },
+    name: { de: 'Schlafqualität', en: 'Sleep quality' },
     scaleLabels: {
       de: ['schlecht', 'mäßig', 'gut', 'sehr gut'],
       en: ['bad', 'fair', 'good', 'very good']
+    }
+  },
+  schlafdauer: {
+    name: { de: 'Schlafdauer', en: 'Sleep duration' },
+    scaleLabels: {
+      de: ['unter 6 h', '6–7 h', '7–8 h', 'über 8 h'],
+      en: ['under 6 h', '6–7 h', '7–8 h', 'over 8 h']
     }
   },
   ernaehrung: {

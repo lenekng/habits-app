@@ -1,8 +1,9 @@
 import Dexie, { type Table } from 'dexie';
 import type { Cycle, CycleObservation, DayEntry, HabitDefinition, Setting } from './types';
 import { POLARITY_FLIP_IDS, flipScale4Value } from './polarity';
+import { SCHLAF_SEED_NAME, SCHLAFDAUER_HABIT, splitSleepHabits } from './sleep-split';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export class HabitsDB extends Dexie {
   day_entries!: Table<DayEntry, string>;
@@ -40,6 +41,13 @@ export class HabitsDB extends Dexie {
           }
         });
     });
+    // v3: „Gut geschlafen" in Schlafqualität + Schlafdauer aufgeteilt
+    // (Transformation in sleep-split.ts, geteilt mit dem Backup-Upgrade).
+    this.version(3).upgrade(async (tx) => {
+      const table = tx.table('habit_definitions');
+      const defs = (await table.toArray()) as HabitDefinition[];
+      await table.bulkPut(splitSleepHabits(defs));
+    });
   }
 }
 
@@ -62,8 +70,9 @@ export const DEFAULT_HABITS: HabitDefinition[] = [
   { id: 'alkohol', name: 'Alkohol', type: 'scale4', scaleLabels: ['viel', 'mittel', 'wenig', 'keiner'], sortOrder: 10 },
   { id: 'stress', name: 'Stress', type: 'scale4', scaleLabels: ['sehr viel', 'viel', 'mittel', 'wenig'], sortOrder: 11 },
   { id: 'gefuehle', name: 'Gefühle', type: 'scale4', scaleLabels: ['schlecht', 'eher schlecht', 'eher gut', 'gut'], sortOrder: 12 },
-  { id: 'schlaf', name: 'Gut geschlafen', type: 'scale4', scaleLabels: ['schlecht', 'mäßig', 'gut', 'sehr gut'], sortOrder: 13 },
-  { id: 'ernaehrung', name: 'Ernährung', type: 'scale4', scaleLabels: ['ungesund', 'eher ungesund', 'eher gesund', 'gesund'], sortOrder: 14 }
+  { id: 'schlaf', name: SCHLAF_SEED_NAME, type: 'scale4', scaleLabels: ['schlecht', 'mäßig', 'gut', 'sehr gut'], sortOrder: 13 },
+  { ...SCHLAFDAUER_HABIT, sortOrder: 14 },
+  { id: 'ernaehrung', name: 'Ernährung', type: 'scale4', scaleLabels: ['ungesund', 'eher ungesund', 'eher gesund', 'gesund'], sortOrder: 15 }
 ];
 
 export const db = new HabitsDB();
