@@ -304,6 +304,7 @@ const de = {
   'zyklus.running': (p: MsgParams) => `läuft (Tag ${p.day})`,
   'zyklus.lenDays': (p: MsgParams) => `${p.len} ${Number(p.len) === 1 ? 'Tag' : 'Tage'}`,
   'zyklus.ovDay': (p: MsgParams) => `ES ≈ Tag ${p.day}`,
+  'zyklus.ovDayRetro': (p: MsgParams) => `ES ≈ Tag ${p.day} (rückgerechnet)`,
   'zyklus.dash': '—',
 
   'chart.axisDay': 'Tag',
@@ -652,6 +653,7 @@ const en: Record<MessageKey, Msg> = {
   'zyklus.running': (p: MsgParams) => `ongoing (day ${p.day})`,
   'zyklus.lenDays': (p: MsgParams) => `${p.len} ${Number(p.len) === 1 ? 'day' : 'days'}`,
   'zyklus.ovDay': (p: MsgParams) => `Ov ≈ day ${p.day}`,
+  'zyklus.ovDayRetro': (p: MsgParams) => `Ov ≈ day ${p.day} (back-calculated)`,
   'zyklus.dash': '—',
 
   'chart.axisDay': 'Day',

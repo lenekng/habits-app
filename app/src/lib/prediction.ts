@@ -1,6 +1,8 @@
-import type { CycleInfo } from './cycles';
+import { DEFAULT_LUTEAL, lutealLengths, type CycleInfo } from './cycles';
 import { addDays } from './date';
 import type { MessageKey } from './i18n/messages';
+
+export { lutealLengths };
 
 export type PredictionMethod = 'temperature' | 'length' | 'none';
 
@@ -20,8 +22,6 @@ export interface PeriodPrediction {
 
 const MIN_LENGTH_CYCLES = 3;
 const PLAUSIBLE_LENGTH: [number, number] = [15, 60];
-const PLAUSIBLE_LUTEAL: [number, number] = [8, 18];
-const DEFAULT_LUTEAL = 14;
 
 function daysBetween(a: string, b: string): number {
   return Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
@@ -42,19 +42,6 @@ export function completedLengths(cycles: CycleInfo[]): number[] {
   return cycles
     .map((c) => c.length)
     .filter((l): l is number => l !== undefined && l >= PLAUSIBLE_LENGTH[0] && l <= PLAUSIBLE_LENGTH[1]);
-}
-
-// Lutealphasenlänge = Tage vom geschätzten Eisprung bis zum Beginn der nächsten
-// Periode. Nur aus Zyklen, die einen Eisprung haben UND einen Folgezyklus.
-export function lutealLengths(cycles: CycleInfo[]): number[] {
-  const out: number[] = [];
-  for (let i = 0; i < cycles.length - 1; i++) {
-    const ov = cycles[i]!.ovulationEstimate;
-    if (!ov) continue;
-    const len = daysBetween(ov, cycles[i + 1]!.startDate);
-    if (len >= PLAUSIBLE_LUTEAL[0] && len <= PLAUSIBLE_LUTEAL[1]) out.push(len);
-  }
-  return out;
 }
 
 function finalize(

@@ -11,6 +11,12 @@ export interface CycleInfo {
   menstruationEnd: string;
   tempShift: TempShiftResult;
   ovulationEstimate?: string;
+  // Rückblickend geschätzter Eisprung für abgeschlossene Zyklen ohne
+  // bestätigten Temperaturanstieg — nur für die Phasen-Zuordnung im
+  // CycleIndex. Vorhersage (lutealLengths) und Kurvenblatt nutzen bewusst
+  // ausschließlich ovulationEstimate, sonst würde die Rückrechnung ihre
+  // eigene Luteal-Statistik zirkulär füttern.
+  retroOvulationEstimate?: string;
   mucusPeakDay?: string;
   mucusPlausible?: boolean;
 }
@@ -25,6 +31,12 @@ const REAL_BLEEDING = new Set(['light', 'medium', 'heavy']);
 const EPISODE_MAX_GAP = 2;
 const MIN_CYCLE_DAYS = 15;
 const MUCUS_QUALITY: Partial<Record<Mucus, number>> = { f: 1, S: 2, 'S+': 3 };
+
+export const DEFAULT_LUTEAL = 14;
+const PLAUSIBLE_LUTEAL: [number, number] = [8, 18];
+// Schleim-Höhepunkt zählt nur als Eisprung-Kandidat, wenn er nahe genug an
+// der Rückrechnung liegt — sonst ist es eher eine späte Östrogenspitze o. Ä.
+const MUCUS_RETRO_TOLERANCE = 4;
 
 function bleedingEpisodes(entries: DayEntry[]): { start: string; end: string }[] {
   const days = entries
@@ -44,6 +56,48 @@ function daysBetween(a: string, b: string): number {
   return Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
 }
 
+// Lutealphasenlänge = Tage vom geschätzten Eisprung bis zum Beginn der nächsten
+// Periode. Nur aus Zyklen, die einen temperaturbestätigten Eisprung haben UND
+// einen Folgezyklus.
+export function lutealLengths(cycles: CycleInfo[]): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < cycles.length - 1; i++) {
+    const ov = cycles[i]!.ovulationEstimate;
+    if (!ov) continue;
+    const len = daysBetween(ov, cycles[i + 1]!.startDate);
+    if (len >= PLAUSIBLE_LUTEAL[0] && len <= PLAUSIBLE_LUTEAL[1]) out.push(len);
+  }
+  return out;
+}
+
+function median(values: number[]): number {
+  const s = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 === 1 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
+}
+
+// Rückblickende Eisprung-Schätzung für abgeschlossene Zyklen ohne bestätigten
+// Temperaturanstieg. Die Lutealphase ist intraindividuell deutlich stabiler
+// als die Follikelphase, deshalb wird rückwärts gerechnet: Eisprung ≈ nächster
+// Periodenstart minus mediane Lutealphasenlänge aus den temperaturbestätigten
+// Zyklen (mit < 2 Stützwerten: DEFAULT_LUTEAL). Liegt der Schleim-Höhepunkt
+// nahe genug an dieser Rückrechnung, gewinnt er als direkte Beobachtung.
+function addRetroOvulationEstimates(cycles: CycleInfo[]): void {
+  const luteals = lutealLengths(cycles);
+  const lutealDays = luteals.length >= 2 ? Math.round(median(luteals)) : DEFAULT_LUTEAL;
+  for (const c of cycles) {
+    if (c.ovulationEstimate || !c.endDate) continue;
+    const backward = addDays(c.endDate, 1 - lutealDays);
+    const estimate =
+      c.mucusPeakDay && Math.abs(daysBetween(c.mucusPeakDay, backward)) <= MUCUS_RETRO_TOLERANCE
+        ? c.mucusPeakDay
+        : backward;
+    // nie vor das Menstruationsende — bei sehr kurzen Zyklen entfällt die
+    // Follikelphase dann einfach
+    c.retroOvulationEstimate = estimate < c.menstruationEnd ? c.menstruationEnd : estimate;
+  }
+}
+
 export function detectCycles(entries: DayEntry[]): CycleInfo[] {
   const episodes = bleedingEpisodes(entries);
 
@@ -55,7 +109,7 @@ export function detectCycles(entries: DayEntry[]): CycleInfo[] {
     }
   }
 
-  return starts.map((s, idx) => {
+  const cycles = starts.map((s, idx) => {
     const next = starts[idx + 1];
     const endDate = next ? addDays(next.start, -1) : undefined;
     const rangeEnd = endDate ?? '9999-12-31';
@@ -98,6 +152,9 @@ export function detectCycles(entries: DayEntry[]): CycleInfo[] {
       mucusPlausible
     };
   });
+
+  addRetroOvulationEstimates(cycles);
+  return cycles;
 }
 
 export function buildCycleIndex(entries: DayEntry[]): CycleIndex {
@@ -107,12 +164,13 @@ export function buildCycleIndex(entries: DayEntry[]): CycleIndex {
 
   for (const c of cycles) {
     const end = c.endDate ?? addDays(c.startDate, 45);
+    const boundary = c.ovulationEstimate ?? c.retroOvulationEstimate;
     let d = c.startDate;
     while (d <= end) {
       cycleDayByDate.set(d, daysBetween(c.startDate, d) + 1);
       if (d <= c.menstruationEnd) phaseByDate.set(d, 'menstruation');
-      else if (c.ovulationEstimate) {
-        phaseByDate.set(d, d <= c.ovulationEstimate ? 'follikel' : 'luteal');
+      else if (boundary) {
+        phaseByDate.set(d, d <= boundary ? 'follikel' : 'luteal');
       } else phaseByDate.set(d, 'unbestimmt');
       d = addDays(d, 1);
     }

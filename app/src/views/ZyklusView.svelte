@@ -200,7 +200,9 @@
                     <span class="hist-ov">
                       {h.c.ovulationEstimate
                         ? t('zyklus.ovDay', { day: cycleDayOf(h.c, h.c.ovulationEstimate) })
-                        : t('zyklus.dash')}
+                        : h.c.retroOvulationEstimate
+                          ? t('zyklus.ovDayRetro', { day: cycleDayOf(h.c, h.c.retroOvulationEstimate) })
+                          : t('zyklus.dash')}
                     </span>
                   </button>
                 </li>
